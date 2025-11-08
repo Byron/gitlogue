@@ -137,7 +137,7 @@ impl UI {
             self.engine.current_file_index,
         );
         self.editor.render(f, right_layout[0], &self.engine);
-        self.terminal.render(f, right_layout[1]);
+        self.terminal.render(f, right_layout[1], &self.engine);
         self.status_bar
             .render(f, main_layout[1], self.metadata.as_ref());
     }

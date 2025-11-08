@@ -79,6 +79,8 @@ pub enum AnimationStep {
     MoveCursor { line: usize, col: usize },
     Pause { duration_ms: u64 },
     SwitchFile { file_index: usize, content: String },
+    TerminalCommand { command: String },
+    TerminalOutput { text: String },
 }
 
 /// Animation state machine
@@ -103,6 +105,7 @@ pub struct AnimationEngine {
     cursor_blink_timer: Instant,
     viewport_height: usize,
     pub current_file_index: usize,
+    pub terminal_lines: Vec<String>,
 }
 
 impl AnimationEngine {
@@ -119,6 +122,7 @@ impl AnimationEngine {
             cursor_blink_timer: Instant::now(),
             viewport_height: 20, // Default, will be updated from UI
             current_file_index: 0,
+            terminal_lines: Vec::new(),
         }
     }
 
@@ -132,6 +136,19 @@ impl AnimationEngine {
         self.current_step = 0;
         self.state = AnimationState::Playing;
         self.current_file_index = 0;
+        self.terminal_lines.clear();
+
+        // Git checkout to parent commit (simulation)
+        let parent_hash = format!("{}^", &metadata.hash[..7]);
+        self.steps
+            .push(AnimationStep::TerminalCommand {
+                command: format!("git checkout {}", parent_hash),
+            });
+        self.steps.push(AnimationStep::Pause { duration_ms: 500 });
+        self.steps.push(AnimationStep::TerminalOutput {
+            text: format!("HEAD is now at {} Previous commit", parent_hash),
+        });
+        self.steps.push(AnimationStep::Pause { duration_ms: 1000 });
 
         // Process all file changes
         for (index, change) in metadata.changes.iter().enumerate() {
@@ -154,8 +171,56 @@ impl AnimationEngine {
             }
         }
 
-        // Final pause
-        self.steps.push(AnimationStep::Pause { duration_ms: 3000 });
+        // Git add
+        self.steps.push(AnimationStep::Pause { duration_ms: 2000 });
+        self.steps.push(AnimationStep::TerminalCommand {
+            command: "git add .".to_string(),
+        });
+        self.steps.push(AnimationStep::Pause { duration_ms: 500 });
+
+        // Git commit
+        let commit_message = metadata.message.lines().next().unwrap_or("Update");
+        self.steps
+            .push(AnimationStep::TerminalCommand {
+                command: format!("git commit -m \"{}\"", commit_message),
+            });
+        self.steps.push(AnimationStep::Pause { duration_ms: 800 });
+        self.steps.push(AnimationStep::TerminalOutput {
+            text: format!("[main {}] {}", &metadata.hash[..7], commit_message),
+        });
+        self.steps.push(AnimationStep::TerminalOutput {
+            text: format!(
+                " {} file{} changed",
+                metadata.changes.len(),
+                if metadata.changes.len() == 1 { "" } else { "s" }
+            ),
+        });
+        self.steps.push(AnimationStep::Pause { duration_ms: 1000 });
+
+        // Git push
+        self.steps.push(AnimationStep::TerminalCommand {
+            command: "git push origin main".to_string(),
+        });
+        self.steps.push(AnimationStep::Pause { duration_ms: 500 });
+        self.steps.push(AnimationStep::TerminalOutput {
+            text: "Enumerating objects: 5, done.".to_string(),
+        });
+        self.steps.push(AnimationStep::Pause { duration_ms: 300 });
+        self.steps.push(AnimationStep::TerminalOutput {
+            text: "Counting objects: 100% (5/5), done.".to_string(),
+        });
+        self.steps.push(AnimationStep::Pause { duration_ms: 300 });
+        self.steps.push(AnimationStep::TerminalOutput {
+            text: "Writing objects: 100% (3/3), done.".to_string(),
+        });
+        self.steps.push(AnimationStep::Pause { duration_ms: 500 });
+        self.steps.push(AnimationStep::TerminalOutput {
+            text: format!("To https://github.com/user/repo.git"),
+        });
+        self.steps.push(AnimationStep::TerminalOutput {
+            text: format!("   {}..{} main -> main", &parent_hash[..7], &metadata.hash[..7]),
+        });
+        self.steps.push(AnimationStep::Pause { duration_ms: 2000 });
 
         // Start with the first file's content
         if let Some(change) = metadata.changes.first() {
@@ -344,6 +409,14 @@ impl AnimationEngine {
                 // Switch to new file
                 self.current_file_index = file_index;
                 self.buffer = EditorBuffer::from_content(&content);
+            }
+            AnimationStep::TerminalCommand { command } => {
+                // Add command prompt line
+                self.terminal_lines.push(format!("$ {}", command));
+            }
+            AnimationStep::TerminalOutput { text } => {
+                // Add output line
+                self.terminal_lines.push(text);
             }
         }
 
