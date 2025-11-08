@@ -265,9 +265,9 @@ impl AnimationEngine {
         // Process each hunk
         for hunk in &change.hunks {
             // Calculate target line in current buffer
-            // hunk.old_start is the line number in the old file
-            // We need to adjust it by how many lines we've added/removed so far
-            let target_line = ((hunk.old_start as i64) + line_offset) as usize;
+            // hunk.old_start is 1-indexed (Git line numbers start at 1)
+            // We need to convert to 0-indexed and adjust by how many lines we've added/removed
+            let target_line = ((hunk.old_start as i64) - 1 + line_offset) as usize;
 
             current_cursor_line =
                 self.generate_cursor_movement(current_cursor_line, target_line);
