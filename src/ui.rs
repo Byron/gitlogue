@@ -43,7 +43,12 @@ pub struct UI<'a> {
 }
 
 impl<'a> UI<'a> {
-    pub fn new(speed_ms: u64, _is_commit_specified: bool, repo: Option<&'a GitRepository>) -> Self {
+    pub fn new(
+        speed_ms: u64,
+        _is_commit_specified: bool,
+        repo: Option<&'a GitRepository>,
+        theme: Theme,
+    ) -> Self {
         let should_exit = Arc::new(AtomicBool::new(false));
         Self::setup_signal_handler(should_exit.clone());
 
@@ -57,7 +62,7 @@ impl<'a> UI<'a> {
             engine: AnimationEngine::new(speed_ms),
             repo,
             should_exit,
-            theme: Theme::default(),
+            theme,
         }
     }
 

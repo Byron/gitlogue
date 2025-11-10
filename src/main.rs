@@ -1,4 +1,5 @@
 mod animation;
+mod config;
 mod git;
 mod panes;
 mod syntax;
@@ -6,9 +7,11 @@ mod theme;
 mod ui;
 
 use anyhow::{Context, Result};
-use clap::Parser;
+use clap::{Parser, Subcommand};
+use config::Config;
 use git::GitRepository;
 use std::path::PathBuf;
+use theme::Theme;
 use ui::UI;
 
 #[derive(Parser, Debug)]
@@ -43,6 +46,32 @@ pub struct Args {
         help = "Typing speed in milliseconds per character"
     )]
     pub speed: u64,
+
+    #[arg(
+        short,
+        long,
+        value_name = "NAME",
+        help = "Theme to use (overrides config file)"
+    )]
+    pub theme: Option<String>,
+
+    #[command(subcommand)]
+    pub command: Option<Commands>,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum Commands {
+    /// Theme management commands
+    Theme {
+        #[command(subcommand)]
+        command: ThemeCommands,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum ThemeCommands {
+    /// List all available themes
+    List,
 }
 
 impl Args {
@@ -69,10 +98,31 @@ impl Args {
 
 fn main() -> Result<()> {
     let args = Args::parse();
+
+    // Handle subcommands
+    if let Some(command) = args.command {
+        match command {
+            Commands::Theme { command } => match command {
+                ThemeCommands::List => {
+                    println!("Available themes:");
+                    for theme in Theme::available_themes() {
+                        println!("  - {}", theme);
+                    }
+                    return Ok(());
+                }
+            },
+        }
+    }
+
     let repo_path = args.validate()?;
     let repo = GitRepository::open(&repo_path)?;
 
     let is_commit_specified = args.commit.is_some();
+
+    // Load theme: CLI argument > config file > default
+    let config = Config::load()?;
+    let theme_name = args.theme.as_deref().unwrap_or(&config.theme);
+    let theme = Theme::load(theme_name)?;
 
     // Load initial commit
     let metadata = if let Some(commit_hash) = &args.commit {
@@ -87,7 +137,7 @@ fn main() -> Result<()> {
     } else {
         Some(&repo)
     };
-    let mut ui = UI::new(args.speed, is_commit_specified, repo_ref);
+    let mut ui = UI::new(args.speed, is_commit_specified, repo_ref, theme);
     ui.load_commit(metadata);
     ui.run()?;
 

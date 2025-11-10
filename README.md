@@ -8,6 +8,7 @@ Watch your code being typed out again with syntax highlighting, just like you wr
 
 - 🎬 **Animated Commit Replay** - Watch commits being recreated with realistic typing animations
 - 🎨 **Syntax Highlighting** - Support for 26 programming languages via tree-sitter
+- 🎭 **Multiple Themes** - 9 built-in themes with customization support
 - 🌳 **File Tree View** - Directory structure with change statistics
 - 📊 **Commit Metadata** - Author, date, message, and change details
 - 🎯 **Multiple Modes** - Random commit playback or view a specific commit
@@ -54,11 +55,41 @@ gitlogue --commit <commit-hash>
 ### Options
 
 - `--commit <hash>` - Display a specific commit instead of random playback
+- `--theme <name>` - Select a theme (e.g., dracula, nord, monokai)
+- `--speed <ms>` - Set typing speed in milliseconds per character (default: 30)
 - `--help` - Show help information
+
+### Commands
+
+- `theme list` - List all available themes
+
+### Themes
+
+gitlogue supports multiple themes. Use `theme list` subcommand to see all available options:
+
+```bash
+gitlogue theme list
+```
+
+Select a theme with the `--theme` option:
+
+```bash
+gitlogue --theme dracula
+gitlogue --theme nord
+gitlogue --theme solarized-light
+```
+
+You can also set a default theme in `~/.config/gitlogue/config.toml`:
+
+```toml
+theme = "dracula"
+```
+
+See [docs/themes.md](docs/themes.md) for more information about themes and customization.
 
 ### Controls
 
-- `q` or `Ctrl+C` - Quit the application
+- `Esc` or `Ctrl+C` - Quit the application
 
 ## How It Works
 
