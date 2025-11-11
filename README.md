@@ -26,6 +26,16 @@ cargo install --path .
 
 See the [Installation Guide](docs/installation.md) for more options and troubleshooting.
 
+## Features
+
+- 🎬 **Animated Commit Replay** - Watch commits being recreated with realistic typing animations
+- 🎨 **Syntax Highlighting** - Support for 26 programming languages via tree-sitter
+- 🎭 **Multiple Themes** - 9 built-in themes with customization support
+- 🌳 **File Tree View** - Directory structure with change statistics
+- 📊 **Commit Metadata** - Author, date, message, and change details
+- 🎯 **Multiple Modes** - Random commit playback or view a specific commit
+- ⚡ **Fast & Lightweight** - Built with Rust for performance
+
 ## Usage
 
 ### Popular Use Cases
@@ -78,16 +88,6 @@ gitlogue theme set dracula
 ```
 
 See the [Configuration Guide](docs/configuration.md) for detailed options and examples.
-
-## Features
-
-- 🎬 **Animated Commit Replay** - Watch commits being recreated with realistic typing animations
-- 🎨 **Syntax Highlighting** - Support for 26 programming languages via tree-sitter
-- 🎭 **Multiple Themes** - 9 built-in themes with customization support
-- 🌳 **File Tree View** - Directory structure with change statistics
-- 📊 **Commit Metadata** - Author, date, message, and change details
-- 🎯 **Multiple Modes** - Random commit playback or view a specific commit
-- ⚡ **Fast & Lightweight** - Built with Rust for performance
 
 ## Supported Languages
 
