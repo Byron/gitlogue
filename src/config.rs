@@ -7,16 +7,30 @@ use std::path::PathBuf;
 pub struct Config {
     #[serde(default = "default_theme")]
     pub theme: String,
+    #[serde(default = "default_speed")]
+    pub speed: u64,
+    #[serde(default = "default_background")]
+    pub background: bool,
 }
 
 fn default_theme() -> String {
     "tokyo-night".to_string()
 }
 
+fn default_speed() -> u64 {
+    30
+}
+
+fn default_background() -> bool {
+    true
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
             theme: default_theme(),
+            speed: default_speed(),
+            background: default_background(),
         }
     }
 }
@@ -34,6 +48,49 @@ impl Config {
 
         toml::from_str(&contents)
             .with_context(|| format!("Failed to parse config file: {}", config_path.display()))
+    }
+
+    pub fn save(&self) -> Result<()> {
+        let config_path = Self::config_path()?;
+
+        let contents = if config_path.exists() {
+            // Load existing config and update values to preserve comments
+            let existing = fs::read_to_string(&config_path).with_context(|| {
+                format!("Failed to read config file: {}", config_path.display())
+            })?;
+
+            let mut doc = existing
+                .parse::<toml_edit::DocumentMut>()
+                .with_context(|| {
+                    format!("Failed to parse config file: {}", config_path.display())
+                })?;
+
+            // Update values while preserving comments
+            doc["theme"] = toml_edit::value(self.theme.as_str());
+            doc["speed"] = toml_edit::value(self.speed as i64);
+            doc["background"] = toml_edit::value(self.background);
+
+            doc.to_string()
+        } else {
+            // Create new config with comments
+            format!(
+                "# gitlogue configuration file\n\
+                 # All settings are optional and will use defaults if not specified\n\
+                 \n\
+                 # Theme to use for syntax highlighting\n\
+                 theme = \"{}\"\n\
+                 \n\
+                 # Typing speed in milliseconds per character\n\
+                 speed = {}\n\
+                 \n\
+                 # Show background colors (set to false for transparent background)\n\
+                 background = {}\n",
+                self.theme, self.speed, self.background
+            )
+        };
+
+        fs::write(&config_path, contents)
+            .with_context(|| format!("Failed to write config file: {}", config_path.display()))
     }
 
     pub fn config_path() -> Result<PathBuf> {

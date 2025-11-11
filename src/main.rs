@@ -43,10 +43,9 @@ pub struct Args {
         short,
         long,
         value_name = "MS",
-        default_value = "30",
-        help = "Typing speed in milliseconds per character"
+        help = "Typing speed in milliseconds per character (overrides config file)"
     )]
-    pub speed: u64,
+    pub speed: Option<u64>,
 
     #[arg(
         short,
@@ -58,13 +57,12 @@ pub struct Args {
 
     #[arg(
         long,
-        default_value = "true",
         num_args = 0..=1,
         default_missing_value = "true",
         value_name = "BOOL",
-        help = "Show background colors (use --background=false for transparent background)"
+        help = "Show background colors (use --background=false for transparent background, overrides config file)"
     )]
-    pub background: bool,
+    pub background: Option<bool>,
 
     #[command(subcommand)]
     pub command: Option<Commands>,
@@ -83,6 +81,11 @@ pub enum Commands {
 pub enum ThemeCommands {
     /// List all available themes
     List,
+    /// Set default theme in config file
+    Set {
+        #[arg(value_name = "NAME", help = "Theme name to set as default")]
+        name: String,
+    },
 }
 
 impl Args {
@@ -121,6 +124,19 @@ fn main() -> Result<()> {
                     }
                     return Ok(());
                 }
+                ThemeCommands::Set { name } => {
+                    // Validate theme exists
+                    Theme::load(&name)?;
+
+                    // Load existing config or create new one
+                    let mut config = Config::load().unwrap_or_default();
+                    config.theme = name.clone();
+                    config.save()?;
+
+                    let config_path = Config::config_path()?;
+                    println!("Theme set to '{}' in {}", name, config_path.display());
+                    return Ok(());
+                }
             },
         }
     }
@@ -130,13 +146,15 @@ fn main() -> Result<()> {
 
     let is_commit_specified = args.commit.is_some();
 
-    // Load theme: CLI argument > config file > default
+    // Load config: CLI arguments > config file > defaults
     let config = Config::load()?;
     let theme_name = args.theme.as_deref().unwrap_or(&config.theme);
+    let speed = args.speed.unwrap_or(config.speed);
+    let background = args.background.unwrap_or(config.background);
     let mut theme = Theme::load(theme_name)?;
 
     // Apply transparent background if requested
-    if !args.background {
+    if !background {
         theme = theme.with_transparent_background();
     }
 
@@ -153,7 +171,7 @@ fn main() -> Result<()> {
     } else {
         Some(&repo)
     };
-    let mut ui = UI::new(args.speed, is_commit_specified, repo_ref, theme);
+    let mut ui = UI::new(speed, is_commit_specified, repo_ref, theme);
     ui.load_commit(metadata);
     ui.run()?;
 

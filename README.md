@@ -26,6 +26,16 @@ cargo install --path .
 
 See the [Installation Guide](docs/installation.md) for more options and troubleshooting.
 
+## Features
+
+- 🎬 **Animated Commit Replay** - Watch commits being recreated with realistic typing animations
+- 🎨 **Syntax Highlighting** - Support for 26 programming languages via tree-sitter
+- 🎭 **Multiple Themes** - 9 built-in themes with customization support
+- 🌳 **File Tree View** - Directory structure with change statistics
+- 📊 **Commit Metadata** - Author, date, message, and change details
+- 🎯 **Multiple Modes** - Random commit playback or view a specific commit
+- ⚡ **Fast & Lightweight** - Built with Rust for performance
+
 ## Usage
 
 ### Popular Use Cases
@@ -55,6 +65,9 @@ gitlogue --speed 20
 # List available themes
 gitlogue theme list
 
+# Set default theme
+gitlogue theme set dracula
+
 # Combine options
 gitlogue --commit HEAD~5 --theme nord --speed 15
 ```
@@ -65,15 +78,11 @@ gitlogue --commit HEAD~5 --theme nord --speed 15
 
 See the [Usage Guide](docs/usage.md) for detailed examples and advanced features.
 
-## Features
+## Configuration
 
-- 🎬 **Animated Commit Replay** - Watch commits being recreated with realistic typing animations
-- 🎨 **Syntax Highlighting** - Support for 26 programming languages via tree-sitter
-- 🎭 **Multiple Themes** - 9 built-in themes with customization support
-- 🌳 **File Tree View** - Directory structure with change statistics
-- 📊 **Commit Metadata** - Author, date, message, and change details
-- 🎯 **Multiple Modes** - Random commit playback or view a specific commit
-- ⚡ **Fast & Lightweight** - Built with Rust for performance
+gitlogue can be configured via `~/.config/gitlogue/config.toml`. You can set default theme, typing speed, and background preferences.
+
+See the [Configuration Guide](docs/configuration.md) for detailed options and examples.
 
 ## Supported Languages
 
@@ -83,15 +92,18 @@ Rust, TypeScript, JavaScript, Python, Go, Ruby, Swift, Kotlin, Java, PHP, C#, C,
 
 - [Installation Guide](docs/installation.md) - Detailed installation instructions for different platforms
 - [Usage Guide](docs/usage.md) - Comprehensive usage examples and CLI options
+- [Configuration Guide](docs/configuration.md) - Config file options and customization
 - [Theme Customization](docs/themes.md) - Theme configuration and customization
 - [Contributing Guidelines](docs/CONTRIBUTING.md) - How to contribute to the project
 - [Architecture Overview](docs/ARCHITECTURE.md) - Technical architecture and design decisions
 
+## Related Projects
+
+Want to type code yourself? Try [**GitType**](https://github.com/unhappychoice/gittype).
+
 ## Contributing
 
 Contributions are welcome! Please read our [Contributing Guidelines](docs/CONTRIBUTING.md) for details on how to get started.
-
-See the [v0.1.0 Milestone](https://github.com/unhappychoice/gitlogue/milestone/1) for planned features.
 
 ## License
 
