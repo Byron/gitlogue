@@ -1,11 +1,12 @@
 # Theme Customization Guide
 
-gitlogue provides a rich theming system with 9 beautiful built-in themes and support for custom theme configuration.
+gitlogue provides a rich theming system with 15 beautiful built-in themes and support for custom theme configuration.
 
 ## Table of Contents
 
 - [Built-in Themes](#built-in-themes)
 - [Using Themes](#using-themes)
+- [Background Options](#background-options)
 - [Theme Configuration](#theme-configuration)
 - [Creating Custom Themes](#creating-custom-themes)
 - [Theme Structure](#theme-structure)
@@ -13,18 +14,24 @@ gitlogue provides a rich theming system with 9 beautiful built-in themes and sup
 
 ## Built-in Themes
 
-gitlogue comes with 9 carefully crafted themes optimized for code readability and visual appeal:
+gitlogue comes with 15 carefully crafted themes optimized for code readability and visual appeal:
 
 ### Dark Themes
 
-- **tokyo-night** (default) - A modern dark theme inspired by Tokyo's neon nights. Balanced contrast with blue and purple accents.
-- **dracula** - A vibrant dark theme with rich purples and greens. High contrast for extended viewing.
-- **nord** - A cool, arctic-inspired color palette with muted blues and grays. Easy on the eyes for long sessions.
-- **solarized-dark** - The legendary Solarized theme (dark variant). Scientifically designed for optimal readability.
-- **monokai** - A classic theme with warm browns and oranges. Reminiscent of vintage terminals.
+- **ayu-dark** - Minimalist theme with clean design and orange accents. Simple and uncluttered.
+- **catppuccin** - Soothing pastel theme (Mocha variant) with soft, gentle colors.
+- **dracula** - Vibrant dark theme with rich purples and greens. High contrast for extended viewing.
+- **everforest** - Nature-inspired theme with earthy green tones. Easy on the eyes for long sessions.
+- **github-dark** - GitHub's official dark theme. Clean and professional for familiar coding experience.
+- **gruvbox** - Retro groove color scheme with warm, earthy tones. Perfect for a cozy coding atmosphere.
+- **material** - Google's Material Design inspired theme. Modern and vibrant color palette.
+- **monokai** - Classic theme with warm browns and oranges. Reminiscent of vintage terminals.
+- **night-owl** - Deep blue theme designed for night owls. Carefully balanced contrast for extended use.
+- **nord** - Cool, arctic-inspired color palette with muted blues and grays. Smooth and calming.
 - **one-dark** - Inspired by Atom's One Dark theme. Clean and professional with excellent syntax highlighting.
-- **gruvbox** - A retro groove color scheme with warm, earthy tones. Perfect for a cozy coding atmosphere.
-- **catppuccin** - A soothing pastel theme (Mocha variant) with soft, gentle colors.
+- **rose-pine** - Elegant pastel theme with purple and pink tones. Soft and sophisticated color scheme.
+- **solarized-dark** - The legendary Solarized theme (dark variant). Scientifically designed for optimal readability.
+- **tokyo-night** (default) - Modern dark theme inspired by Tokyo's neon nights. Balanced contrast with blue and purple accents.
 
 ### Light Themes
 
@@ -67,6 +74,9 @@ gitlogue --commit abc123 --theme nord
 
 # Slower typing with Gruvbox theme
 gitlogue --speed 50 --theme gruvbox
+
+# Use Material theme with transparent background
+gitlogue --theme material --background false
 ```
 
 #### Via Configuration File
@@ -74,6 +84,43 @@ gitlogue --speed 50 --theme gruvbox
 > **Note:** Configuration file support is planned for a future release and is not yet available.
 
 Once implemented, you'll be able to set a default theme in `~/.config/gitlogue/config.toml`.
+
+## Background Options
+
+All themes support transparent backgrounds, allowing you to use your terminal's background (including transparency and background images).
+
+### Using Transparent Background
+
+Use `--background false` or `--background=false` to disable theme background colors:
+
+```bash
+# Use transparent background with any theme
+gitlogue --background false
+gitlogue --background=false
+
+# Combine with specific theme
+gitlogue --theme rose-pine --background false
+gitlogue --theme github-dark --background=false
+```
+
+### Using Opaque Background (Default)
+
+By default, themes use their defined background colors:
+
+```bash
+# Default behavior - background colors enabled
+gitlogue
+gitlogue --theme dracula
+```
+
+### Benefits of Transparent Background
+
+- Works with terminal transparency settings
+- Shows your terminal background image
+- Integrates seamlessly with your desktop environment
+- Reduces visual clutter in tiling window managers
+
+**Note:** Transparent background only affects the main background areas. UI elements like cursor highlights and selected file backgrounds remain visible for usability.
 
 ## Creating Custom Themes
 
@@ -163,20 +210,32 @@ color_name = { r = 255, g = 100, b = 50 }
 ## Choosing the Right Theme
 
 ### For Long Sessions
-- **nord** - Easy on the eyes with muted colors
-- **gruvbox** - Warm, comfortable color palette
-- **catppuccin** - Gentle pastel tones
+- **everforest** - Nature-inspired greens, very easy on the eyes
+- **nord** - Muted colors with arctic coolness
+- **rose-pine** - Soft pastels for comfortable viewing
+- **catppuccin** - Gentle and soothing tones
 
 ### For High Contrast
-- **dracula** - Vibrant and clear
+- **dracula** - Vibrant purples and greens
+- **material** - Bold, modern colors
 - **solarized-dark** - Scientifically optimized contrast
 
-### For Presentations
-- **tokyo-night** - Modern and professional
-- **one-dark** - Clean and clear
+### For Minimalists
+- **ayu-dark** - Clean and simple design
+- **github-dark** - Familiar and uncluttered
+- **one-dark** - Professional and minimal
+
+### For Night Coding
+- **night-owl** - Designed specifically for night use
+- **tokyo-night** - Modern with balanced contrast
+- **monokai** - Classic warm tones
 
 ### For Bright Environments
 - **solarized-light** - Optimized for well-lit spaces
+
+### For Retro Aesthetics
+- **gruvbox** - Warm, earthy retro groove
+- **monokai** - Classic vintage terminal feel
 
 ## Troubleshooting
 
