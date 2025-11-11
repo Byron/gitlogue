@@ -179,6 +179,28 @@ pub struct CommitMetadata {
     pub changes: Vec<FileChange>,
 }
 
+impl CommitMetadata {
+    /// Returns indices sorted in FileTree display order (directory -> filename)
+    pub fn sorted_file_indices(&self) -> Vec<usize> {
+        let mut indices: Vec<usize> = (0..self.changes.len()).collect();
+        indices.sort_by_key(|&index| {
+            let path = &self.changes[index].path;
+            let parts: Vec<&str> = path.split('/').collect();
+
+            if parts.len() == 1 {
+                // Root level file: ("", filename)
+                (String::new(), path.clone())
+            } else {
+                // File in directory: (directory, filename)
+                let dir = parts[..parts.len() - 1].join("/");
+                let filename = parts[parts.len() - 1].to_string();
+                (dir, filename)
+            }
+        });
+        indices
+    }
+}
+
 impl GitRepository {
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
         let repo = Repository::open(path).context("Failed to open Git repository")?;

@@ -8,21 +8,61 @@ use ratatui::{
     Frame,
 };
 use std::collections::BTreeMap;
+use unicode_width::UnicodeWidthStr;
 
 type FileEntry = (usize, String, String, Color, usize, usize);
 type FileTree = BTreeMap<String, Vec<FileEntry>>;
 
-pub struct FileTreePane;
+pub struct FileTreePane {
+    cached_lines: Vec<Line<'static>>,
+    cached_current_line_index: Option<usize>,
+    cached_total_display_lines: usize,
+    cached_metadata_id: Option<String>,
+    cached_current_file_index: Option<usize>,
+    cached_content_width: Option<usize>,
+}
 
 impl FileTreePane {
-    pub fn render(
-        &self,
-        f: &mut Frame,
-        area: Rect,
-        metadata: Option<&CommitMetadata>,
+    pub fn new() -> Self {
+        Self {
+            cached_lines: vec![Line::from("No commit loaded")],
+            cached_current_line_index: None,
+            cached_total_display_lines: 1,
+            cached_metadata_id: None,
+            cached_current_file_index: None,
+            cached_content_width: None,
+        }
+    }
+
+    pub fn set_commit_metadata(
+        &mut self,
+        metadata: &CommitMetadata,
         current_file_index: usize,
         theme: &Theme,
+        content_width: usize,
     ) {
+        let metadata_id = metadata.hash.clone();
+
+        // Only recalculate if metadata, current file, or content width changed
+        if self.cached_metadata_id.as_ref() == Some(&metadata_id)
+            && self.cached_current_file_index == Some(current_file_index)
+            && self.cached_content_width == Some(content_width)
+        {
+            return;
+        }
+
+        let (lines, current_line_index, total_display_lines) =
+            Self::build_tree_lines(metadata, current_file_index, theme, content_width);
+
+        self.cached_lines = lines;
+        self.cached_current_line_index = current_line_index;
+        self.cached_total_display_lines = total_display_lines;
+        self.cached_metadata_id = Some(metadata_id);
+        self.cached_current_file_index = Some(current_file_index);
+        self.cached_content_width = Some(content_width);
+    }
+
+    pub fn render(&self, f: &mut Frame, area: Rect, theme: &Theme) {
         let block = Block::default()
             .style(Style::default().bg(theme.background_left))
             .padding(Padding {
@@ -32,18 +72,51 @@ impl FileTreePane {
                 bottom: 1,
             });
 
-        let lines = if let Some(meta) = metadata {
-            // Subtract horizontal padding (2 on each side)
-            let content_width = area.width.saturating_sub(4) as usize;
-            Self::build_tree_lines(meta, current_file_index, theme, content_width)
+        // Calculate scroll offset to keep current file visible
+        // Subtract padding (top: 1, bottom: 1)
+        let visible_height = area.height.saturating_sub(2) as usize;
+        let scroll_offset = if let Some(line_idx) = self.cached_current_line_index {
+            Self::calculate_scroll_offset(line_idx, visible_height, self.cached_total_display_lines)
         } else {
-            vec![Line::from("No commit loaded")]
+            0
         };
 
-        let content = Paragraph::new(lines)
+        let content = Paragraph::new(self.cached_lines.clone())
             .block(block)
-            .wrap(Wrap { trim: false });
+            .wrap(Wrap { trim: false })
+            .scroll((scroll_offset as u16, 0));
         f.render_widget(content, area);
+    }
+
+    fn calculate_scroll_offset(
+        current_line: usize,
+        visible_height: usize,
+        total_lines: usize,
+    ) -> usize {
+        if visible_height == 0 || total_lines == 0 {
+            return 0;
+        }
+
+        // If all lines fit in viewport, no need to scroll
+        if total_lines <= visible_height {
+            return 0;
+        }
+
+        // Keep the current line in the middle of the viewport
+        let preferred_position = visible_height / 2;
+
+        let offset = current_line.saturating_sub(preferred_position);
+
+        // Make sure we don't scroll past the end
+        let max_offset = total_lines.saturating_sub(visible_height);
+        offset.min(max_offset)
+    }
+
+    fn calculate_wrapped_lines(text_display_width: usize, area_width: usize) -> usize {
+        if area_width == 0 {
+            return 1;
+        }
+        text_display_width.div_ceil(area_width).max(1)
     }
 
     fn build_tree_lines(
@@ -51,7 +124,7 @@ impl FileTreePane {
         current_file_index: usize,
         theme: &Theme,
         area_width: usize,
-    ) -> Vec<Line<'static>> {
+    ) -> (Vec<Line<'static>>, Option<usize>, usize) {
         // Build directory tree
         let mut tree: FileTree = BTreeMap::new();
 
@@ -104,29 +177,43 @@ impl FileTreePane {
         }
 
         let mut lines = Vec::new();
+        let mut current_line_index = None;
+        let mut display_line_count = 0; // Track actual display lines including wrapping
         let sorted_dirs: Vec<_> = tree.keys().cloned().collect();
 
         for dir in sorted_dirs {
-            let files = tree.get(&dir).unwrap();
+            let mut files = tree.get(&dir).unwrap().clone();
+            // Sort files by filename within each directory
+            files.sort_by(|a, b| a.1.cmp(&b.1));
 
             // Add directory header if not root
             if !dir.is_empty() {
+                let dir_text = format!("{}/", dir);
                 lines.push(Line::from(vec![Span::styled(
-                    format!("{}/", dir),
+                    dir_text.clone(),
                     Style::default()
                         .fg(theme.file_tree_directory)
                         .add_modifier(Modifier::BOLD),
                 )]));
+                display_line_count += Self::calculate_wrapped_lines(dir_text.width(), area_width);
             }
 
             // Add files
-            for (index, filename, status_char, color, additions, deletions) in files {
+            for (index, filename, status_char, color, additions, deletions) in &files {
                 let is_current = *index == current_file_index;
-                let indent = if dir.is_empty() { "" } else { "  " }.to_string();
-                let indent_len = indent.len();
 
+                // Track the line index of the current file (before adding the line)
+                if is_current {
+                    current_line_index = Some(display_line_count);
+                }
+
+                let indent = if dir.is_empty() { "" } else { "  " }.to_string();
                 let status_str = format!("{} ", status_char);
                 let stats_str = format!(" +{} -{}", additions, deletions);
+
+                // Calculate actual line width for wrapping (use display width for wide characters)
+                let line_width =
+                    indent.width() + status_str.width() + filename.width() + stats_str.width();
 
                 let mut spans = vec![];
 
@@ -164,10 +251,9 @@ impl FileTreePane {
                     ));
 
                     // Calculate line length and fill to right edge
-                    let line_len = indent_len + status_str.len() + filename.len() + stats_str.len();
-                    if line_len < area_width {
+                    if line_width < area_width {
                         spans.push(Span::styled(
-                            " ".repeat(area_width - line_len),
+                            " ".repeat(area_width - line_width),
                             Style::default().bg(theme.file_tree_current_file_bg),
                         ));
                     }
@@ -192,10 +278,12 @@ impl FileTreePane {
                     ));
                 }
 
+                display_line_count += Self::calculate_wrapped_lines(line_width, area_width);
+
                 lines.push(Line::from(spans));
             }
         }
 
-        lines
+        (lines, current_line_index, display_line_count)
     }
 }
