@@ -13,7 +13,6 @@ use ratatui::style::Color;
 pub struct SelectableParagraph<'a> {
     lines: Vec<Line<'a>>,
     block: Option<Block<'a>>,
-    scroll: (u16, u16),
     selected_line: Option<usize>,
     selected_style: Style,
     background_style: Style,
@@ -27,7 +26,6 @@ impl<'a> SelectableParagraph<'a> {
         Self {
             lines,
             block: None,
-            scroll: (0, 0),
             selected_line: None,
             selected_style: Style::default(),
             background_style: Style::default(),
@@ -39,11 +37,6 @@ impl<'a> SelectableParagraph<'a> {
 
     pub fn block(mut self, block: Block<'a>) -> Self {
         self.block = Some(block);
-        self
-    }
-
-    pub fn scroll(mut self, offset: (u16, u16)) -> Self {
-        self.scroll = offset;
         self
     }
 
@@ -242,11 +235,8 @@ impl<'a> Widget for SelectableParagraph<'a> {
             }
         }
 
-        // Apply scroll
-        let start_line = self.scroll.0 as usize;
         let visible_lines: Vec<_> = wrapped_lines_with_indices
             .into_iter()
-            .skip(start_line)
             .take(height)
             .collect();
 
