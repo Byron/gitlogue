@@ -9,17 +9,72 @@ This guide provides detailed instructions for installing gitlogue on different p
 
 ## Installation Methods
 
-### Method 1: Using Cargo (Recommended)
+### Method 1: Using Install Script (Recommended)
 
-The easiest way to install gitlogue is using Cargo, Rust's package manager:
+The quickest way to install gitlogue is using the installation script:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/unhappychoice/gitlogue/main/install.sh | bash
+```
+
+This script will:
+- Automatically detect your platform (macOS Intel/ARM, Linux x64/ARM64)
+- Download the latest release binary
+- Install to `~/.local/bin` (customizable with `INSTALL_DIR` environment variable)
+
+**Custom installation directory:**
+```bash
+INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/unhappychoice/gitlogue/main/install.sh | bash
+```
+
+### Method 2: Using Homebrew
+
+For macOS and Linux users with Homebrew:
+
+```bash
+brew install unhappychoice/tap/gitlogue
+```
+
+**Updating via Homebrew:**
+```bash
+brew upgrade gitlogue
+```
+
+### Method 3: Using Cargo
+
+Install from [crates.io](https://crates.io) using Cargo:
 
 ```bash
 cargo install gitlogue
 ```
 
-This will download, compile, and install the latest version of gitlogue from [crates.io](https://crates.io).
+This will download, compile, and install the latest version.
 
-### Method 2: From Source
+### Method 4: Download Pre-built Binaries
+
+Pre-built binaries for multiple platforms are available in the [Releases](https://github.com/unhappychoice/gitlogue/releases) section.
+
+**Supported platforms:**
+- macOS (Intel: x86_64, Apple Silicon: aarch64)
+- Linux (x64: x86_64, ARM64: aarch64)
+- Windows (x64: x86_64)
+
+**Manual installation:**
+1. Download the appropriate archive for your platform
+2. Extract the binary:
+   ```bash
+   # For Linux/macOS
+   tar -xzf gitlogue-v*.tar.gz
+
+   # For Windows
+   # Use your preferred extraction tool for .zip files
+   ```
+3. Move to a directory in your PATH:
+   ```bash
+   sudo mv gitlogue /usr/local/bin/
+   ```
+
+### Method 5: From Source
 
 If you want to build the latest development version or contribute to the project:
 
@@ -40,10 +95,6 @@ If you want to build the latest development version or contribute to the project
    ```
 
    The binary will be located at `target/release/gitlogue`.
-
-### Method 3: Download Pre-built Binaries (Coming Soon)
-
-Pre-built binaries for macOS, Linux, and Windows will be available in the [Releases](https://github.com/unhappychoice/gitlogue/releases) section.
 
 ## Platform-Specific Notes
 
@@ -93,6 +144,20 @@ You should see the help message with available commands and options.
 
 ## Updating
 
+### Install Script
+
+Re-run the installation script to update to the latest version:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/unhappychoice/gitlogue/main/install.sh | bash
+```
+
+### Homebrew
+
+```bash
+brew upgrade gitlogue
+```
+
 ### Cargo Installation
 
 To update to the latest version:
@@ -113,7 +178,23 @@ cargo install --path .
 
 ## Uninstalling
 
-To remove gitlogue from your system:
+### Install Script
+
+If installed via the install script, manually remove the binary:
+
+```bash
+rm ~/.local/bin/gitlogue
+# Or if you used a custom INSTALL_DIR
+rm /path/to/your/install/dir/gitlogue
+```
+
+### Homebrew
+
+```bash
+brew uninstall gitlogue
+```
+
+### Cargo
 
 ```bash
 cargo uninstall gitlogue
@@ -121,19 +202,25 @@ cargo uninstall gitlogue
 
 ## Configuration
 
-Configuration file support is planned for future releases. See the [Usage Guide](usage.md) for available command-line options.
+gitlogue supports configuration via `~/.config/gitlogue/config.toml`. See the [Configuration Guide](configuration.md) for detailed options and the [Usage Guide](usage.md) for command-line options.
 
 ## Troubleshooting
 
 ### Command Not Found
 
-If you get a "command not found" error after installation, make sure Cargo's bin directory is in your PATH:
+If you get a "command not found" error after installation, make sure the installation directory is in your PATH:
 
+**For Install Script (default: `~/.local/bin`):**
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+**For Cargo:**
 ```bash
 export PATH="$HOME/.cargo/bin:$PATH"
 ```
 
-Add this line to your shell configuration file (`~/.bashrc`, `~/.zshrc`, etc.) to make it permanent.
+Add the appropriate line to your shell configuration file (`~/.bashrc`, `~/.zshrc`, etc.) to make it permanent.
 
 ### Build Errors
 
