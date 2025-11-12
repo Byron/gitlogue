@@ -18,7 +18,7 @@ use ui::UI;
 #[derive(Parser, Debug)]
 #[command(
     name = "git-logue",
-    version = "0.1.0",
+    version = "0.0.1",
     about = "A Git history screensaver - watch your code rewrite itself",
     long_about = "git-logue is a terminal-based screensaver that replays Git commits as if a ghost developer were typing each change by hand. Characters appear, vanish, and transform with natural pacing and syntax highlighting."
 )]
