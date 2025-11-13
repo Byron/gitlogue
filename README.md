@@ -1,12 +1,12 @@
 # gitlogue
 
 <p align="center">
-  <img src="docs/assets/demo.gif" alt="gitlogue demo" width="800" />
+  <img src="docs/assets/demo.gif" alt="gitlogue demo" style="max-width: 100%; width: 800px;" />
 </p>
 
-A terminal-based Git commit diff animator that brings your code changes to life.
+A cinematic Git commit replay tool for the terminal, turning your Git history into a living, animated story.
 
-Watch commits replay with realistic typing animations, syntax highlighting, and file tree views - transforming Git history into a cinematic coding experience.
+Watch commits unfold with realistic typing animations, syntax highlighting, and file tree transitions, transforming code changes into a visual experience.
 
 ## Installation
 
@@ -40,29 +40,28 @@ See the [Installation Guide](docs/installation.md) for more options and troubles
 
 ## Features
 
-- 🎬 **Animated Commit Replay** - Watch commits being recreated with realistic typing animations
-- 🎨 **Syntax Highlighting** - Support for 26 programming languages via tree-sitter
-- 🎭 **Multiple Themes** - 9 built-in themes with customization support
-- 🌳 **File Tree View** - Directory structure with change statistics
-- 📊 **Commit Metadata** - Author, date, message, and change details
-- 🎯 **Multiple Modes** - Random commit playback or view a specific commit
-- ⚡ **Fast & Lightweight** - Built with Rust for performance
+🎬 **Commit Replay as Animation** — Realistic typing, cursor movement, deletions, and file operations  
+🎨 **Tree-sitter Syntax Highlighting** — 26 languages supported  
+🌳 **Project File Tree** — Directory structure with change statistics  
+🖥️ **Screensaver Mode** — Endless random commit playback  
+🎭 **Themes** — 9 built-in themes + full customization support  
+⚡ **Fast & Lightweight** — Built with Rust for performance  
 
 ## Usage
 
 ### Popular Use Cases
 
-- 🖥️  **Screensaver** - Ambient coding display for your workspace
-- 🎓 **Education** - Show how code evolved over time
-- 📺 **Presentations** - Live code history replay
-- 🎬 **Content Creation** - Record demos with VHS or asciinema
-- 🎨 **Desktop Ricing** - Perfect for tiling window manager setups
-- 💼 **Look Busy** - Appear productive during meetings (we don't judge!)
+🖥️  **Screensaver** — Ambient coding display for your workspace  
+🎓 **Education** — Visualize how code evolved over time  
+📺 **Presentations** — Replay real commit histories live  
+🎬 **Content Creation** — Record demos with VHS or asciinema  
+🎨 **Desktop Ricing** — A living decoration for your terminal  
+💼 **Look Busy Mode** — Appear productive during meetings  
 
 ### Quick Start
 
 ```bash
-# Screensaver mode - random commits
+# Start the cinematic screensaver
 gitlogue
 
 # View a specific commit
@@ -84,17 +83,12 @@ gitlogue theme set dracula
 gitlogue --commit HEAD~5 --theme nord --speed 15
 ```
 
-### Controls
-
-- `Esc` or `Ctrl+C` - Quit the application
-
-See the [Usage Guide](docs/usage.md) for detailed examples and advanced features.
-
 ## Configuration
 
-gitlogue can be configured via `~/.config/gitlogue/config.toml`. You can set default theme, typing speed, and background preferences.
+gitlogue can be configured via `~/.config/gitlogue/config.toml`.  
+You can set the default theme, typing speed, and background preferences.
 
-See the [Configuration Guide](docs/configuration.md) for detailed options and examples.
+See the [Configuration Guide](docs/configuration.md) for full options and examples.
 
 ## Supported Languages
 
@@ -102,12 +96,12 @@ Rust, TypeScript, JavaScript, Python, Go, Ruby, Swift, Kotlin, Java, PHP, C#, C,
 
 ## Documentation
 
-- [Installation Guide](docs/installation.md) - Detailed installation instructions for different platforms
-- [Usage Guide](docs/usage.md) - Comprehensive usage examples and CLI options
-- [Configuration Guide](docs/configuration.md) - Config file options and customization
-- [Theme Customization](docs/themes.md) - Theme configuration and customization
-- [Contributing Guidelines](docs/CONTRIBUTING.md) - How to contribute to the project
-- [Architecture Overview](docs/ARCHITECTURE.md) - Technical architecture and design decisions
+[Installation Guide](docs/installation.md)  
+[Usage Guide](docs/usage.md)  
+[Configuration Guide](docs/configuration.md)  
+[Theme Customization](docs/themes.md)  
+[Contributing Guidelines](docs/CONTRIBUTING.md)  
+[Architecture Overview](docs/ARCHITECTURE.md)
 
 ## Related Projects
 
@@ -115,11 +109,12 @@ Want to type code yourself? Try [**GitType**](https://github.com/unhappychoice/g
 
 ## Contributing
 
-Contributions are welcome! Please read our [Contributing Guidelines](docs/CONTRIBUTING.md) for details on how to get started.
+Contributions are welcome.  
+See the [Contributing Guidelines](docs/CONTRIBUTING.md) for details.
 
 ## License
 
-ISC License - see [LICENSE](LICENSE) file for details.
+ISC License. See [LICENSE](LICENSE) for details.
 
 ## Author
 
