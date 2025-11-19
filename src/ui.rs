@@ -43,15 +43,18 @@ pub struct UI<'a> {
     should_exit: Arc<AtomicBool>,
     theme: Theme,
     order: PlaybackOrder,
+    loop_playback: bool,
+    commit_spec: Option<String>,
 }
 
 impl<'a> UI<'a> {
     pub fn new(
         speed_ms: u64,
-        _is_commit_specified: bool,
         repo: Option<&'a GitRepository>,
         theme: Theme,
         order: PlaybackOrder,
+        loop_playback: bool,
+        commit_spec: Option<String>,
     ) -> Self {
         let should_exit = Arc::new(AtomicBool::new(false));
         Self::setup_signal_handler(should_exit.clone());
@@ -68,6 +71,8 @@ impl<'a> UI<'a> {
             should_exit,
             theme,
             order,
+            loop_playback,
+            commit_spec,
         }
     }
 
@@ -145,14 +150,14 @@ impl<'a> UI<'a> {
                 UIState::Playing => {
                     if self.engine.is_finished() {
                         if self.repo.is_some() {
-                            // Random mode - schedule next commit
+                            // Schedule next commit
                             // Wait time proportional to speed (100x the typing speed)
                             self.state = UIState::WaitingForNext {
                                 resume_at: Instant::now()
                                     + Duration::from_millis(self.speed_ms * 100),
                             };
                         } else {
-                            // Single commit mode - quit
+                            // Single commit mode without loop - quit
                             self.state = UIState::Finished;
                         }
                     }
@@ -160,10 +165,15 @@ impl<'a> UI<'a> {
                 UIState::WaitingForNext { resume_at } => {
                     if Instant::now() >= resume_at {
                         if let Some(repo) = self.repo {
-                            let result = match self.order {
-                                PlaybackOrder::Random => repo.random_commit(),
-                                PlaybackOrder::Asc => repo.next_asc_commit(),
-                                PlaybackOrder::Desc => repo.next_desc_commit(),
+                            let result = if self.loop_playback && self.commit_spec.is_some() {
+                                // Loop mode with specific commit - replay the same commit
+                                repo.get_commit(self.commit_spec.as_ref().unwrap())
+                            } else {
+                                match self.order {
+                                    PlaybackOrder::Random => repo.random_commit(),
+                                    PlaybackOrder::Asc => repo.next_asc_commit(),
+                                    PlaybackOrder::Desc => repo.next_desc_commit(),
+                                }
                             };
                             match result {
                                 Ok(metadata) => {
