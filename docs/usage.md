@@ -158,6 +158,68 @@ Display version information:
 gitlogue --version
 ```
 
+### `--ignore <PATTERN>` / `-i <PATTERN>`
+
+Ignore files matching patterns. Can be specified multiple times.
+
+```bash
+# Ignore Jupyter notebooks (JSON format, hard to read)
+gitlogue --ignore "*.ipynb"
+
+# Ignore multiple patterns
+gitlogue -i "*.ipynb" -i "poetry.lock"
+
+# Ignore generated documentation
+gitlogue --ignore "docs/api/**"
+```
+
+Pattern syntax (gitignore-style):
+- `*.ipynb` - All Jupyter notebook files anywhere in the repository
+- `poetry.lock` - Poetry lock file in repository root
+- `docs/api/**` - All files under docs/api directory
+
+**Note**: Binary files (images, videos, etc.) are already automatically excluded by gitlogue and don't need to be specified here.
+
+This is useful for:
+- Skipping Jupyter notebooks (`.ipynb`) - JSON format that clutters the display
+- Hiding large generated/lock files that are tracked in git
+- Excluding minified JavaScript bundles
+- Focusing on source code by hiding test snapshots or generated docs
+
+### `--ignore-file <PATH>`
+
+Read ignore patterns from a file (one pattern per line, gitignore-style syntax).
+
+```bash
+# Create an ignore file
+cat > .gitlogue-ignore << EOF
+# Jupyter notebooks
+*.ipynb
+
+# Lock files
+poetry.lock
+Cargo.lock
+
+# Generated documentation
+docs/api/**
+EOF
+
+# Use the ignore file
+gitlogue --ignore-file .gitlogue-ignore
+```
+
+The file format:
+- One pattern per line
+- Empty lines are ignored
+- Lines starting with `#` are treated as comments
+
+You can combine multiple ignore sources - they are additive:
+
+```bash
+# Config file + ignore file + CLI flags
+gitlogue --ignore-file .gitlogue-ignore -i "*.md"
+```
+
 ## Subcommands
 
 ### `theme list`

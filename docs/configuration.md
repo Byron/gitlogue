@@ -44,6 +44,10 @@ order = "random"
 
 # Loop the animation continuously
 loop = false
+
+# Ignore patterns (gitignore syntax)
+# Examples: ["*.ipynb", "poetry.lock", "docs/api/**"]
+ignore_patterns = []
 ```
 
 ## Configuration Options
@@ -105,6 +109,46 @@ Whether to loop the animation continuously.
 - **Example**: `loop = true`
 
 When enabled, the animation will repeat indefinitely after completing. Especially useful with specific commits for demonstrations and ambient displays.
+
+### `ignore_patterns`
+
+List of patterns for files to ignore during animation.
+
+- **Type**: Array of strings
+- **Default**: `[]` (empty array)
+- **Example**: `ignore_patterns = ["*.ipynb", "poetry.lock"]`
+
+Pattern syntax (gitignore-style):
+- `*.ipynb` - All Jupyter notebook files anywhere in the repository
+- `poetry.lock` - Poetry lock file in repository root
+- `docs/api/**` - All files under docs/api directory
+
+**Note**: Binary files (images, videos, etc.) are already automatically excluded and don't need to be specified here.
+
+Common use cases:
+```toml
+# Ignore Jupyter notebooks (JSON format, hard to read as text diff)
+ignore_patterns = ["*.ipynb"]
+
+# Ignore lock files that are tracked in git
+ignore_patterns = ["poetry.lock", "Cargo.lock", "yarn.lock"]
+
+# Ignore generated documentation
+ignore_patterns = ["docs/api/**"]
+
+# Combine multiple patterns
+ignore_patterns = [
+    "*.ipynb",
+    "poetry.lock",
+    "**/*.test.js",
+    "**/__snapshots__/**"
+]
+```
+
+Note: These patterns are additive with CLI `--ignore` flags and `--ignore-file` options. The ignore order is:
+1. Config file `ignore_patterns`
+2. `--ignore-file` patterns
+3. CLI `--ignore` flags (highest priority)
 
 ## Configuration Priority
 

@@ -15,6 +15,8 @@ pub struct Config {
     pub order: String,
     #[serde(default = "default_loop")]
     pub loop_playback: bool,
+    #[serde(default = "default_ignore_patterns")]
+    pub ignore_patterns: Vec<String>,
 }
 
 fn default_theme() -> String {
@@ -37,6 +39,10 @@ fn default_loop() -> bool {
     false
 }
 
+fn default_ignore_patterns() -> Vec<String> {
+    Vec::new()
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -45,6 +51,7 @@ impl Default for Config {
             background: default_background(),
             order: default_order(),
             loop_playback: default_loop(),
+            ignore_patterns: default_ignore_patterns(),
         }
     }
 }
@@ -86,9 +93,27 @@ impl Config {
             doc["order"] = toml_edit::value(self.order.as_str());
             doc["loop"] = toml_edit::value(self.loop_playback);
 
+            // Update ignore_patterns as array
+            let mut array = toml_edit::Array::new();
+            for pattern in &self.ignore_patterns {
+                array.push(pattern.as_str());
+            }
+            doc["ignore_patterns"] = toml_edit::value(array);
+
             doc.to_string()
         } else {
             // Create new config with comments
+            let patterns_str = if self.ignore_patterns.is_empty() {
+                "[]".to_string()
+            } else {
+                let patterns: Vec<String> = self
+                    .ignore_patterns
+                    .iter()
+                    .map(|p| format!("\"{}\"", p))
+                    .collect();
+                format!("[{}]", patterns.join(", "))
+            };
+
             format!(
                 "# gitlogue configuration file\n\
                  # All settings are optional and will use defaults if not specified\n\
@@ -106,8 +131,17 @@ impl Config {
                  order = \"{}\"\n\
                  \n\
                  # Loop the animation continuously\n\
-                 loop = {}\n",
-                self.theme, self.speed, self.background, self.order, self.loop_playback
+                 loop = {}\n\
+                 \n\
+                 # Ignore patterns (gitignore syntax)\n\
+                 # Examples: [\"*.png\", \"*.ipynb\", \"dist/**\"]\n\
+                 ignore_patterns = {}\n",
+                self.theme,
+                self.speed,
+                self.background,
+                self.order,
+                self.loop_playback,
+                patterns_str
             )
         };
 

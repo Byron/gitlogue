@@ -98,6 +98,12 @@ gitlogue --theme dracula
 # Adjust typing speed (ms per character)
 gitlogue --speed 20
 
+# Ignore specific file patterns (e.g., notebooks, lock files)
+gitlogue --ignore "*.ipynb" --ignore "poetry.lock"
+
+# Use an ignore file
+gitlogue --ignore-file .gitlogue-ignore
+
 # List available themes
 gitlogue theme list
 
@@ -105,7 +111,7 @@ gitlogue theme list
 gitlogue theme set dracula
 
 # Combine options
-gitlogue --commit HEAD~5 --theme nord --speed 15
+gitlogue --commit HEAD~5 --theme nord --speed 15 --ignore "*.ipynb"
 ```
 
 ## Configuration
