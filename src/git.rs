@@ -794,4 +794,43 @@ mod tests {
         assert!(should_exclude_file("__snapshots__/component.snap"));
         assert!(should_exclude_file("src/__snapshots__/app.test.js.snap"));
     }
+
+    #[test]
+    fn test_user_patterns_integration() {
+        // Test all pattern types in one test since OnceLock can only be set once
+        let patterns = vec![
+            "*.png".to_string(),
+            "*.ipynb".to_string(),
+            "dist/**".to_string(),
+            "node_modules/**".to_string(),
+        ];
+
+        // Only initialize if not already initialized
+        let _ = init_ignore_patterns(&patterns);
+
+        // Test file extension patterns
+        assert!(should_exclude_file("image.png"));
+        assert!(should_exclude_file("path/to/notebook.ipynb"));
+        assert!(should_exclude_file("screenshot.png"));
+        assert!(!should_exclude_file("image.jpg"));
+        assert!(!should_exclude_file("script.py"));
+
+        // Test directory patterns
+        assert!(should_exclude_file("dist/bundle.js"));
+        assert!(should_exclude_file("dist/css/main.css"));
+        assert!(should_exclude_file("node_modules/pkg/index.js"));
+        assert!(!should_exclude_file("src/index.js"));
+    }
+
+    #[test]
+    fn test_empty_patterns() {
+        let patterns: Vec<String> = vec![];
+        assert!(init_ignore_patterns(&patterns).is_ok());
+    }
+
+    #[test]
+    fn test_invalid_pattern() {
+        let patterns = vec!["[invalid".to_string()];
+        assert!(init_ignore_patterns(&patterns).is_err());
+    }
 }
