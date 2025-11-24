@@ -568,7 +568,7 @@ impl GitRepository {
             .unwrap_or("Unknown")
             .to_string();
         
-        // Parse the time string (format: "seconds timezone")
+        // Parse the time string (format: "seconds timezone") - we only need the seconds
         let time_str = author_sig.time;
         let timestamp = time_str
             .split_whitespace()
@@ -656,7 +656,7 @@ impl GitRepository {
 
             // Generate diff hunks using imara-diff
             let (hunks, diff_text) = if !is_binary && old_id.is_some() && new_id.is_some() {
-                Self::generate_hunks(repo, old_id.unwrap(), new_id.unwrap(), &old_content, &new_content)
+                Self::generate_hunks(&old_content, &new_content)
             } else {
                 (Vec::new(), String::new())
             };
@@ -722,9 +722,6 @@ impl GitRepository {
     }
 
     fn generate_hunks(
-        _repo: &Repository,
-        _old_id: ObjectId,
-        _new_id: ObjectId,
         old_content: &Option<String>,
         new_content: &Option<String>,
     ) -> (Vec<DiffHunk>, String) {
@@ -737,12 +734,12 @@ impl GitRepository {
         let diff_output = imara_diff::diff(imara_diff::Algorithm::Histogram, &input, sink);
 
         // Parse the unified diff to extract hunks
-        let hunks = Self::parse_unified_diff(&diff_output, old_str.as_bytes(), new_str.as_bytes());
+        let hunks = Self::parse_unified_diff(&diff_output);
 
         (hunks, diff_output)
     }
 
-    fn parse_unified_diff(diff_text: &str, _old_data: &[u8], _new_data: &[u8]) -> Vec<DiffHunk> {
+    fn parse_unified_diff(diff_text: &str) -> Vec<DiffHunk> {
         let mut hunks = Vec::new();
 
         let mut current_hunk: Option<DiffHunk> = None;
