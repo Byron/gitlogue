@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use gix::bstr::ByteSlice;
+use gix::diff::blob::Algorithm;
 use gix::object::tree::diff::Change;
 use gix::{ObjectId, Repository};
 use globset::{Glob, GlobSet, GlobSetBuilder};
@@ -8,7 +9,6 @@ use rand::Rng;
 use std::cell::RefCell;
 use std::path::Path;
 use std::sync::OnceLock;
-use gix::diff::blob::Algorithm;
 
 // Thread-safe global pattern matcher for user-defined ignore patterns
 static USER_PATTERNS: OnceLock<GlobSet> = OnceLock::new();
@@ -265,11 +265,7 @@ impl GitRepository {
             .context("Invalid commit hash or commit not found")?;
 
         let commit_id = spec.object()?.id;
-        let commit = self
-            .repo
-            .find_object(commit_id)?
-            .try_into_commit()
-            .map_err(|_| anyhow::anyhow!("Object is not a commit"))?;
+        let commit = self.repo.find_commit(commit_id)?;
 
         Self::extract_metadata_with_changes(&self.repo, &commit)
     }
@@ -283,10 +279,11 @@ impl GitRepository {
 
             let mut candidates = Vec::new();
             for info in commits {
-                if let Ok(commit) = self.repo.find_object(info.id)?.try_into_commit() {
-                    if commit.parent_ids().count() <= 1 {
-                        candidates.push(info.id);
-                    }
+                let Ok(commit) = self.repo.find_commit(info.id) else {
+                    continue;
+                };
+                if commit.parent_ids().count() <= 1 {
+                    candidates.push(info.id);
                 }
             }
 
@@ -302,11 +299,7 @@ impl GitRepository {
             .get(rand::rng().random_range(0..candidates.len()))
             .context("Failed to select random commit")?;
 
-        let commit = self
-            .repo
-            .find_object(*selected_oid)?
-            .try_into_commit()
-            .map_err(|_| anyhow::anyhow!("Not a commit"))?;
+        let commit = self.repo.find_commit(*selected_oid)?;
         drop(cache); // Release the borrow before calling extract_metadata_with_changes
         Self::extract_metadata_with_changes(&self.repo, &commit)
     }
@@ -334,11 +327,7 @@ impl GitRepository {
 
         *index += 1;
 
-        let commit = self
-            .repo
-            .find_object(*selected_oid)?
-            .try_into_commit()
-            .map_err(|_| anyhow::anyhow!("Not a commit"))?;
+        let commit = self.repo.find_commit(*selected_oid)?;
         drop(index);
         drop(cache);
         Self::extract_metadata_with_changes(&self.repo, &commit)
@@ -364,11 +353,7 @@ impl GitRepository {
 
         *index += 1;
 
-        let commit = self
-            .repo
-            .find_object(*selected_oid)?
-            .try_into_commit()
-            .map_err(|_| anyhow::anyhow!("Not a commit"))?;
+        let commit = self.repo.find_commit(*selected_oid)?;
         drop(index);
         drop(cache);
         Self::extract_metadata_with_changes(&self.repo, &commit)
@@ -401,11 +386,7 @@ impl GitRepository {
         let selected_oid = commits.get(*index).context("Failed to select commit")?;
         *index += 1;
 
-        let commit = self
-            .repo
-            .find_object(*selected_oid)?
-            .try_into_commit()
-            .map_err(|_| anyhow::anyhow!("Not a commit"))?;
+        let commit = self.repo.find_commit(*selected_oid)?;
         drop(index);
         drop(range);
         Self::extract_metadata_with_changes(&self.repo, &commit)
@@ -429,11 +410,7 @@ impl GitRepository {
         let selected_oid = commits.get(desc_index).context("Failed to select commit")?;
         *index += 1;
 
-        let commit = self
-            .repo
-            .find_object(*selected_oid)?
-            .try_into_commit()
-            .map_err(|_| anyhow::anyhow!("Not a commit"))?;
+        let commit = self.repo.find_commit(*selected_oid)?;
         drop(index);
         drop(range);
         Self::extract_metadata_with_changes(&self.repo, &commit)
@@ -451,11 +428,7 @@ impl GitRepository {
             .get(rand::rng().random_range(0..commits.len()))
             .context("Failed to select random commit")?;
 
-        let commit = self
-            .repo
-            .find_object(*selected_oid)?
-            .try_into_commit()
-            .map_err(|_| anyhow::anyhow!("Not a commit"))?;
+        let commit = self.repo.find_commit(*selected_oid)?;
         drop(range);
         Self::extract_metadata_with_changes(&self.repo, &commit)
     }
@@ -493,7 +466,8 @@ impl GitRepository {
         };
 
         // Build list of commits to exclude if start is specified
-        let exclude_set: std::collections::HashSet<_> = if let Some(start_oid) = start {
+        // TODO: use `with_hidden()` once that can be trusted.
+        let exclude_set: gix::hashtable::HashSet = if let Some(start_oid) = start {
             self.repo
                 .rev_walk([start_oid])
                 .all()?
@@ -501,16 +475,17 @@ impl GitRepository {
                 .map(|info| info.id)
                 .collect()
         } else {
-            std::collections::HashSet::new()
+            Default::default()
         };
 
         let mut commits = Vec::new();
         for info in self.repo.rev_walk([end]).all()?.filter_map(Result::ok) {
             if !exclude_set.contains(&info.id) {
-                if let Ok(commit) = self.repo.find_object(info.id)?.try_into_commit() {
-                    if commit.parent_ids().count() <= 1 {
-                        commits.push(info.id);
-                    }
+                let Ok(commit) = self.repo.find_commit(info.id) else {
+                    continue;
+                };
+                if commit.parent_ids().count() <= 1 {
+                    commits.push(info.id);
                 }
             }
         }
@@ -527,10 +502,11 @@ impl GitRepository {
 
             let mut candidates = Vec::new();
             for info in commits {
-                if let Ok(commit) = self.repo.find_object(info.id)?.try_into_commit() {
-                    if commit.parent_ids().count() <= 1 {
-                        candidates.push(info.id);
-                    }
+                let Ok(commit) = self.repo.find_commit(info.id) else {
+                    continue;
+                };
+                if commit.parent_ids().count() <= 1 {
+                    candidates.push(info.id);
                 }
             }
 
@@ -576,19 +552,18 @@ impl GitRepository {
     fn extract_changes(repo: &Repository, commit: &gix::Commit) -> Result<Vec<FileChange>> {
         let commit_obj = commit.decode()?;
         let commit_tree_id = commit_obj.tree();
-        let commit_tree = repo.find_object(commit_tree_id)?.try_into_tree()?;
+        let commit_tree = repo.find_tree(commit_tree_id)?;
 
         let parent_tree = if let Some(parent_id) = commit_obj.parents().next() {
-            let parent_commit = repo.find_object(parent_id)?.try_into_commit()?;
+            let parent_commit = repo.find_commit(parent_id)?;
             let parent_obj = parent_commit.decode()?;
-            Some(repo.find_object(parent_obj.tree())?.try_into_tree()?)
+            Some(repo.find_tree(parent_obj.tree())?)
         } else {
             None
         };
 
         let mut changes = Vec::new();
 
-        // Prepare diff
         let parent_tree_ref = parent_tree.as_ref();
         let mut tree_diff = if let Some(parent) = parent_tree_ref {
             parent.changes()?
@@ -596,29 +571,13 @@ impl GitRepository {
             commit_tree.changes()?
         };
 
+        let algo = repo.diff_algorithm()?;
         tree_diff.for_each_to_obtain_tree(&commit_tree, |change| {
-            let path = match &change {
-                Change::Addition { location, .. } => {
-                    location.to_str().unwrap_or("unknown").to_string()
-                }
-                Change::Deletion { location, .. } => {
-                    location.to_str().unwrap_or("unknown").to_string()
-                }
-                Change::Modification { location, .. } => {
-                    location.to_str().unwrap_or("unknown").to_string()
-                }
-                Change::Rewrite { location, .. } => {
-                    location.to_str().unwrap_or("unknown").to_string()
-                }
-            };
-
+            let path = change.location().to_str().unwrap_or("unknown");
             let status = FileStatus::from_change(&change);
-            
-            // Note: gix's basic tree diff doesn't detect renames like git2 did.
-            // Renames appear as separate Deletion + Addition changes.
+
             let old_path = None;
 
-            // Get old and new content for blob diff
             let (old_id, new_id, is_binary) = match &change {
                 Change::Addition { id, .. } => {
                     let oid: ObjectId = id.to_owned().into();
@@ -637,9 +596,7 @@ impl GitRepository {
                     let new_binary = Self::is_blob_binary(repo, new_oid);
                     (Some(old_oid), Some(new_oid), old_binary || new_binary)
                 }
-                Change::Rewrite {
-                    source_id, id, ..
-                } => {
+                Change::Rewrite { source_id, id, .. } => {
                     let old_oid: ObjectId = source_id.to_owned().into();
                     let new_oid: ObjectId = id.to_owned().into();
                     let old_binary = Self::is_blob_binary(repo, old_oid);
@@ -651,8 +608,6 @@ impl GitRepository {
             let old_content = old_id.and_then(|id| Self::get_blob_content(repo, id).ok().flatten());
             let new_content = new_id.and_then(|id| Self::get_blob_content(repo, id).ok().flatten());
 
-            // Generate diff hunks using imara-diff
-            let algo = repo.diff_algorithm()?;
             let (hunks, diff_text) = if !is_binary && old_id.is_some() && new_id.is_some() {
                 Self::generate_hunks(&old_content, &new_content, algo)
             } else {
@@ -667,7 +622,7 @@ impl GitRepository {
                 .count();
 
             // Determine exclusion reason
-            let (is_excluded, exclusion_reason) = if should_exclude_file(&path) {
+            let (is_excluded, exclusion_reason) = if should_exclude_file(path) {
                 (true, Some("lock/generated file".to_string()))
             } else if total_changed_lines > MAX_CHANGE_LINES {
                 (
@@ -679,7 +634,7 @@ impl GitRepository {
             };
 
             changes.push(FileChange {
-                path,
+                path: path.to_owned(),
                 old_path,
                 status,
                 is_binary,
@@ -698,9 +653,8 @@ impl GitRepository {
     }
 
     fn is_blob_binary(repo: &Repository, id: ObjectId) -> bool {
-        repo.find_object(id)
+        repo.find_blob(id)
             .ok()
-            .and_then(|obj| obj.try_into_blob().ok())
             .map(|blob| {
                 let data = blob.data.as_slice();
                 data.len() > MAX_BLOB_SIZE || data.contains(&0)
