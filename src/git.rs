@@ -880,4 +880,610 @@ mod tests {
         let patterns = vec!["[invalid".to_string()];
         assert!(init_ignore_patterns(&patterns).is_err());
     }
+
+    mod generate_hunks {
+        use crate::git::GitRepository;
+        use gix::diff::blob::Algorithm;
+
+        #[test]
+        fn test_generate_hunks_simple_addition() {
+            let old = "";
+            let new = "line 1\nline 2\nline 3\n";
+            let hunks = GitRepository::generate_hunks(Some(old), Some(new), Algorithm::Myers);
+
+            insta::assert_debug_snapshot!(hunks, @r#"
+            [
+                DiffHunk {
+                    old_start: 1,
+                    old_lines: 0,
+                    new_start: 1,
+                    new_lines: 3,
+                    lines: [
+                        LineChange {
+                            change_type: Addition,
+                            content: "line 1",
+                            old_line_no: None,
+                            new_line_no: Some(
+                                1,
+                            ),
+                        },
+                        LineChange {
+                            change_type: Addition,
+                            content: "line 2",
+                            old_line_no: None,
+                            new_line_no: Some(
+                                2,
+                            ),
+                        },
+                        LineChange {
+                            change_type: Addition,
+                            content: "line 3",
+                            old_line_no: None,
+                            new_line_no: Some(
+                                3,
+                            ),
+                        },
+                    ],
+                },
+            ]
+            "#);
+        }
+
+        #[test]
+        fn test_generate_hunks_simple_deletion() {
+            let old = "line 1\nline 2\nline 3\n";
+            let new = "";
+            let hunks = GitRepository::generate_hunks(Some(old), Some(new), Algorithm::Myers);
+
+            insta::assert_debug_snapshot!(hunks, @r#"
+            [
+                DiffHunk {
+                    old_start: 1,
+                    old_lines: 3,
+                    new_start: 1,
+                    new_lines: 0,
+                    lines: [
+                        LineChange {
+                            change_type: Deletion,
+                            content: "line 1",
+                            old_line_no: Some(
+                                1,
+                            ),
+                            new_line_no: None,
+                        },
+                        LineChange {
+                            change_type: Deletion,
+                            content: "line 2",
+                            old_line_no: Some(
+                                2,
+                            ),
+                            new_line_no: None,
+                        },
+                        LineChange {
+                            change_type: Deletion,
+                            content: "line 3",
+                            old_line_no: Some(
+                                3,
+                            ),
+                            new_line_no: None,
+                        },
+                    ],
+                },
+            ]
+            "#);
+        }
+
+        #[test]
+        fn test_generate_hunks_simple_modification() {
+            let old = "line 1\nline 2\nline 3\n";
+            let new = "line 1\nmodified line 2\nline 3\n";
+            let hunks = GitRepository::generate_hunks(Some(old), Some(new), Algorithm::Myers);
+
+            insta::assert_debug_snapshot!(hunks, @r#"
+            [
+                DiffHunk {
+                    old_start: 2,
+                    old_lines: 1,
+                    new_start: 2,
+                    new_lines: 1,
+                    lines: [
+                        LineChange {
+                            change_type: Deletion,
+                            content: "line 2",
+                            old_line_no: Some(
+                                2,
+                            ),
+                            new_line_no: None,
+                        },
+                        LineChange {
+                            change_type: Addition,
+                            content: "modified line 2",
+                            old_line_no: None,
+                            new_line_no: Some(
+                                2,
+                            ),
+                        },
+                    ],
+                },
+            ]
+            "#);
+        }
+
+        #[test]
+        fn test_generate_hunks_multiple_changes() {
+            let old = "line 1\nline 2\nline 3\nline 4\nline 5\n";
+            let new = "line 1\nmodified line 2\nline 3\nline 4\nnew line 5\nline 6\n";
+            let hunks = GitRepository::generate_hunks(Some(old), Some(new), Algorithm::Myers);
+
+            insta::assert_debug_snapshot!(hunks, @r#"
+            [
+                DiffHunk {
+                    old_start: 2,
+                    old_lines: 1,
+                    new_start: 2,
+                    new_lines: 1,
+                    lines: [
+                        LineChange {
+                            change_type: Deletion,
+                            content: "line 2",
+                            old_line_no: Some(
+                                2,
+                            ),
+                            new_line_no: None,
+                        },
+                        LineChange {
+                            change_type: Addition,
+                            content: "modified line 2",
+                            old_line_no: None,
+                            new_line_no: Some(
+                                2,
+                            ),
+                        },
+                    ],
+                },
+                DiffHunk {
+                    old_start: 5,
+                    old_lines: 1,
+                    new_start: 5,
+                    new_lines: 2,
+                    lines: [
+                        LineChange {
+                            change_type: Deletion,
+                            content: "line 5",
+                            old_line_no: Some(
+                                5,
+                            ),
+                            new_line_no: None,
+                        },
+                        LineChange {
+                            change_type: Addition,
+                            content: "new line 5",
+                            old_line_no: None,
+                            new_line_no: Some(
+                                5,
+                            ),
+                        },
+                        LineChange {
+                            change_type: Addition,
+                            content: "line 6",
+                            old_line_no: None,
+                            new_line_no: Some(
+                                6,
+                            ),
+                        },
+                    ],
+                },
+            ]
+            "#);
+        }
+
+        #[test]
+        fn test_generate_hunks_addition_in_middle() {
+            let old = "line 1\nline 2\nline 3\n";
+            let new = "line 1\nline 2\ninserted line\nline 3\n";
+            let hunks = GitRepository::generate_hunks(Some(old), Some(new), Algorithm::Myers);
+
+            insta::assert_debug_snapshot!(hunks, @r#"
+            [
+                DiffHunk {
+                    old_start: 3,
+                    old_lines: 0,
+                    new_start: 3,
+                    new_lines: 1,
+                    lines: [
+                        LineChange {
+                            change_type: Addition,
+                            content: "inserted line",
+                            old_line_no: None,
+                            new_line_no: Some(
+                                3,
+                            ),
+                        },
+                    ],
+                },
+            ]
+            "#);
+        }
+
+        #[test]
+        fn test_generate_hunks_deletion_in_middle() {
+            let old = "line 1\nline 2\nline 3\nline 4\n";
+            let new = "line 1\nline 4\n";
+            let hunks = GitRepository::generate_hunks(Some(old), Some(new), Algorithm::Myers);
+
+            insta::assert_debug_snapshot!(hunks, @r#"
+            [
+                DiffHunk {
+                    old_start: 2,
+                    old_lines: 2,
+                    new_start: 2,
+                    new_lines: 0,
+                    lines: [
+                        LineChange {
+                            change_type: Deletion,
+                            content: "line 2",
+                            old_line_no: Some(
+                                2,
+                            ),
+                            new_line_no: None,
+                        },
+                        LineChange {
+                            change_type: Deletion,
+                            content: "line 3",
+                            old_line_no: Some(
+                                3,
+                            ),
+                            new_line_no: None,
+                        },
+                    ],
+                },
+            ]
+            "#);
+        }
+
+        #[test]
+        fn test_generate_hunks_both_empty() {
+            let old = "";
+            let new = "";
+            let hunks = GitRepository::generate_hunks(Some(old), Some(new), Algorithm::Myers);
+
+            insta::assert_debug_snapshot!(hunks, @"[]");
+        }
+
+        #[test]
+        fn test_generate_hunks_none_old() {
+            let new = "line 1\nline 2\n";
+            let hunks = GitRepository::generate_hunks(None, Some(new), Algorithm::Myers);
+
+            insta::assert_debug_snapshot!(hunks, @r#"
+            [
+                DiffHunk {
+                    old_start: 1,
+                    old_lines: 0,
+                    new_start: 1,
+                    new_lines: 2,
+                    lines: [
+                        LineChange {
+                            change_type: Addition,
+                            content: "line 1",
+                            old_line_no: None,
+                            new_line_no: Some(
+                                1,
+                            ),
+                        },
+                        LineChange {
+                            change_type: Addition,
+                            content: "line 2",
+                            old_line_no: None,
+                            new_line_no: Some(
+                                2,
+                            ),
+                        },
+                    ],
+                },
+            ]
+            "#);
+        }
+
+        #[test]
+        fn test_generate_hunks_none_new() {
+            let old = "line 1\nline 2\n";
+            let hunks = GitRepository::generate_hunks(Some(old), None, Algorithm::Myers);
+
+            insta::assert_debug_snapshot!(hunks, @r#"
+            [
+                DiffHunk {
+                    old_start: 1,
+                    old_lines: 2,
+                    new_start: 1,
+                    new_lines: 0,
+                    lines: [
+                        LineChange {
+                            change_type: Deletion,
+                            content: "line 1",
+                            old_line_no: Some(
+                                1,
+                            ),
+                            new_line_no: None,
+                        },
+                        LineChange {
+                            change_type: Deletion,
+                            content: "line 2",
+                            old_line_no: Some(
+                                2,
+                            ),
+                            new_line_no: None,
+                        },
+                    ],
+                },
+            ]
+            "#);
+        }
+
+        #[test]
+        fn test_generate_hunks_both_none() {
+            let hunks = GitRepository::generate_hunks(None, None, Algorithm::Myers);
+
+            insta::assert_debug_snapshot!(hunks, @"[]");
+        }
+
+        #[test]
+        fn test_generate_hunks_replace_all() {
+            let old = "old line 1\nold line 2\nold line 3\n";
+            let new = "new line 1\nnew line 2\nnew line 3\n";
+            let hunks = GitRepository::generate_hunks(Some(old), Some(new), Algorithm::Myers);
+
+            insta::assert_debug_snapshot!(hunks, @r#"
+            [
+                DiffHunk {
+                    old_start: 1,
+                    old_lines: 3,
+                    new_start: 1,
+                    new_lines: 3,
+                    lines: [
+                        LineChange {
+                            change_type: Deletion,
+                            content: "old line 1",
+                            old_line_no: Some(
+                                1,
+                            ),
+                            new_line_no: None,
+                        },
+                        LineChange {
+                            change_type: Deletion,
+                            content: "old line 2",
+                            old_line_no: Some(
+                                2,
+                            ),
+                            new_line_no: None,
+                        },
+                        LineChange {
+                            change_type: Deletion,
+                            content: "old line 3",
+                            old_line_no: Some(
+                                3,
+                            ),
+                            new_line_no: None,
+                        },
+                        LineChange {
+                            change_type: Addition,
+                            content: "new line 1",
+                            old_line_no: None,
+                            new_line_no: Some(
+                                1,
+                            ),
+                        },
+                        LineChange {
+                            change_type: Addition,
+                            content: "new line 2",
+                            old_line_no: None,
+                            new_line_no: Some(
+                                2,
+                            ),
+                        },
+                        LineChange {
+                            change_type: Addition,
+                            content: "new line 3",
+                            old_line_no: None,
+                            new_line_no: Some(
+                                3,
+                            ),
+                        },
+                    ],
+                },
+            ]
+            "#);
+        }
+
+        #[test]
+        fn test_generate_hunks_mixed_operations() {
+            let old = "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\n";
+            let new = "line 1\nmodified 2\nline 3\nline 5\nline 6\nnew line 7\n";
+            let hunks = GitRepository::generate_hunks(Some(old), Some(new), Algorithm::Myers);
+
+            insta::assert_debug_snapshot!(hunks, @r#"
+            [
+                DiffHunk {
+                    old_start: 2,
+                    old_lines: 1,
+                    new_start: 2,
+                    new_lines: 1,
+                    lines: [
+                        LineChange {
+                            change_type: Deletion,
+                            content: "line 2",
+                            old_line_no: Some(
+                                2,
+                            ),
+                            new_line_no: None,
+                        },
+                        LineChange {
+                            change_type: Addition,
+                            content: "modified 2",
+                            old_line_no: None,
+                            new_line_no: Some(
+                                2,
+                            ),
+                        },
+                    ],
+                },
+                DiffHunk {
+                    old_start: 4,
+                    old_lines: 1,
+                    new_start: 4,
+                    new_lines: 0,
+                    lines: [
+                        LineChange {
+                            change_type: Deletion,
+                            content: "line 4",
+                            old_line_no: Some(
+                                4,
+                            ),
+                            new_line_no: None,
+                        },
+                    ],
+                },
+                DiffHunk {
+                    old_start: 7,
+                    old_lines: 0,
+                    new_start: 6,
+                    new_lines: 1,
+                    lines: [
+                        LineChange {
+                            change_type: Addition,
+                            content: "new line 7",
+                            old_line_no: None,
+                            new_line_no: Some(
+                                6,
+                            ),
+                        },
+                    ],
+                },
+            ]
+            "#);
+        }
+
+        #[test]
+        fn test_generate_hunks_whitespace_changes() {
+            let old = "line 1\nline 2\n";
+            let new = "line 1\n  line 2\n";
+            let hunks = GitRepository::generate_hunks(Some(old), Some(new), Algorithm::Myers);
+
+            insta::assert_debug_snapshot!(hunks, @r#"
+            [
+                DiffHunk {
+                    old_start: 2,
+                    old_lines: 1,
+                    new_start: 2,
+                    new_lines: 1,
+                    lines: [
+                        LineChange {
+                            change_type: Deletion,
+                            content: "line 2",
+                            old_line_no: Some(
+                                2,
+                            ),
+                            new_line_no: None,
+                        },
+                        LineChange {
+                            change_type: Addition,
+                            content: "  line 2",
+                            old_line_no: None,
+                            new_line_no: Some(
+                                2,
+                            ),
+                        },
+                    ],
+                },
+            ]
+            "#);
+        }
+
+        #[test]
+        fn test_generate_hunks_real_code_example() {
+            let old = r#"fn main() {
+    println!("Hello, world!");
+}
+"#;
+            let new = r#"fn main() {
+    let name = "World";
+    println!("Hello, {}!", name);
+}
+"#;
+            let hunks = GitRepository::generate_hunks(Some(old), Some(new), Algorithm::Myers);
+
+            insta::assert_debug_snapshot!(hunks, @r###"
+            [
+                DiffHunk {
+                    old_start: 2,
+                    old_lines: 1,
+                    new_start: 2,
+                    new_lines: 2,
+                    lines: [
+                        LineChange {
+                            change_type: Deletion,
+                            content: "    println!(\"Hello, world!\");",
+                            old_line_no: Some(
+                                2,
+                            ),
+                            new_line_no: None,
+                        },
+                        LineChange {
+                            change_type: Addition,
+                            content: "    let name = \"World\";",
+                            old_line_no: None,
+                            new_line_no: Some(
+                                2,
+                            ),
+                        },
+                        LineChange {
+                            change_type: Addition,
+                            content: "    println!(\"Hello, {}!\", name);",
+                            old_line_no: None,
+                            new_line_no: Some(
+                                3,
+                            ),
+                        },
+                    ],
+                },
+            ]
+            "###);
+        }
+
+        #[test]
+        fn test_generate_hunks_histogram_algorithm() {
+            let old = "line 1\nline 2\nline 3\n";
+            let new = "line 1\nmodified line 2\nline 3\n";
+            let hunks = GitRepository::generate_hunks(Some(old), Some(new), Algorithm::Histogram);
+
+            insta::assert_debug_snapshot!(hunks, @r#"
+            [
+                DiffHunk {
+                    old_start: 2,
+                    old_lines: 1,
+                    new_start: 2,
+                    new_lines: 1,
+                    lines: [
+                        LineChange {
+                            change_type: Deletion,
+                            content: "line 2",
+                            old_line_no: Some(
+                                2,
+                            ),
+                            new_line_no: None,
+                        },
+                        LineChange {
+                            change_type: Addition,
+                            content: "modified line 2",
+                            old_line_no: None,
+                            new_line_no: Some(
+                                2,
+                            ),
+                        },
+                    ],
+                },
+            ]
+            "#);
+        }
+    }
 }

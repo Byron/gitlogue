@@ -80,3 +80,6 @@ path = "src/main.rs"
 [[example]]
 name = "test_highlighter"
 path = "examples/test_highlighter.rs"
+
+[dev-dependencies]
+insta = "1.44.1"
