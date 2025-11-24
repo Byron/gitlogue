@@ -169,7 +169,6 @@ impl FileStatus {
 pub enum LineChangeType {
     Addition,
     Deletion,
-    Context,
 }
 
 #[derive(Debug, Clone)]
@@ -240,6 +239,92 @@ impl CommitMetadata {
             }
         });
         indices
+    }
+}
+
+struct DiffHunkCollector<'a> {
+    input: &'a gix::diff::blob::intern::InternedInput<&'a str>,
+    hunks: Vec<DiffHunk>,
+    current_hunk: Option<DiffHunk>,
+    old_line_no: usize,
+    new_line_no: usize,
+}
+
+impl<'a> DiffHunkCollector<'a> {
+    fn new(input: &'a gix::diff::blob::intern::InternedInput<&'a str>) -> Self {
+        Self {
+            input,
+            hunks: Vec::new(),
+            current_hunk: None,
+            old_line_no: 1,
+            new_line_no: 1,
+        }
+    }
+
+    fn finish_current_hunk(&mut self) {
+        if let Some(hunk) = self.current_hunk.take() {
+            self.hunks.push(hunk);
+        }
+    }
+}
+
+impl<'a> gix::diff::blob::Sink for DiffHunkCollector<'a> {
+    type Out = Vec<DiffHunk>;
+
+    fn process_change(&mut self, before: std::ops::Range<u32>, after: std::ops::Range<u32>) {
+        // Finish previous hunk if it exists
+        self.finish_current_hunk();
+
+        let old_start = before.start as usize + 1;
+        let new_start = after.start as usize + 1;
+        let old_lines = (before.end - before.start) as usize;
+        let new_lines = (after.end - after.start) as usize;
+
+        self.old_line_no = old_start;
+        self.new_line_no = new_start;
+
+        let mut lines = Vec::new();
+
+        // Process deletions from the before range
+        for i in before.start..before.end {
+            if let Some(line_token) = self.input.before.get(i as usize) {
+                let content = self.input.interner[*line_token].to_string();
+                lines.push(LineChange {
+                    change_type: LineChangeType::Deletion,
+                    content,
+                    old_line_no: Some(self.old_line_no),
+                    new_line_no: None,
+                });
+                self.old_line_no += 1;
+            }
+        }
+
+        // Process additions from the after range
+        for i in after.start..after.end {
+            if let Some(line_token) = self.input.after.get(i as usize) {
+                let content = self.input.interner[*line_token].to_string();
+                lines.push(LineChange {
+                    change_type: LineChangeType::Addition,
+                    content,
+                    old_line_no: None,
+                    new_line_no: Some(self.new_line_no),
+                });
+                self.new_line_no += 1;
+            }
+        }
+
+        self.current_hunk = Some(DiffHunk {
+            old_start,
+            old_lines,
+            new_start,
+            new_lines,
+            lines,
+        });
+    }
+
+    fn finish(mut self) -> Self::Out {
+        self.finish_current_hunk();
+        self.hunks
     }
 }
 
@@ -598,18 +683,14 @@ impl GitRepository {
                 let new_content =
                     new_id.and_then(|id| Self::get_blob_content(repo, id).ok().flatten());
 
-                let (hunks, diff_text) = if !is_binary && old_id.is_some() && new_id.is_some() {
+                let hunks = if !is_binary && old_id.is_some() && new_id.is_some() {
                     Self::generate_hunks(old_content.as_deref(), new_content.as_deref(), algo)
                 } else {
-                    (Vec::new(), String::new())
+                    Vec::new()
                 };
 
                 // Calculate total changed lines
-                let total_changed_lines: usize = hunks
-                    .iter()
-                    .flat_map(|hunk| &hunk.lines)
-                    .filter(|line| !matches!(line.change_type, LineChangeType::Context))
-                    .count();
+                let total_changed_lines: usize = hunks.iter().flat_map(|hunk| &hunk.lines).count();
 
                 // Determine exclusion reason
                 let (is_excluded, exclusion_reason) = if should_exclude_file(path) {
@@ -634,7 +715,7 @@ impl GitRepository {
                     old_content,
                     new_content,
                     hunks,
-                    diff: diff_text,
+                    diff: String::new(),
                 });
 
                 anyhow::Ok(gix::object::tree::diff::Action::Continue)
@@ -668,119 +749,13 @@ impl GitRepository {
         old_content: Option<&str>,
         new_content: Option<&str>,
         algo: Algorithm,
-    ) -> (Vec<DiffHunk>, String) {
+    ) -> Vec<DiffHunk> {
         let old_str = old_content.unwrap_or("");
         let new_str = new_content.unwrap_or("");
 
         let input = gix::diff::blob::intern::InternedInput::new(old_str, new_str);
-        let sink = gix::diff::blob::UnifiedDiffBuilder::with_writer(&input, String::new());
-        let diff_output = gix::diff::blob::diff(algo, &input, sink);
-
-        // Parse the unified diff to extract hunks
-        let hunks = Self::parse_unified_diff(&diff_output);
-
-        (hunks, diff_output)
-    }
-
-    fn parse_unified_diff(diff_text: &str) -> Vec<DiffHunk> {
-        let mut hunks = Vec::new();
-
-        let mut current_hunk: Option<DiffHunk> = None;
-        let mut old_line_no = 0usize;
-        let mut new_line_no = 0usize;
-
-        for line in diff_text.lines() {
-            if line.starts_with("@@") {
-                // Finish previous hunk
-                if let Some(hunk) = current_hunk.take() {
-                    hunks.push(hunk);
-                }
-
-                // Parse hunk header: @@ -old_start,old_lines +new_start,new_lines @@
-                if let Some(header_content) =
-                    line.strip_prefix("@@").and_then(|s| s.strip_suffix("@@"))
-                {
-                    let parts: Vec<&str> = header_content.split_whitespace().collect();
-                    if parts.len() >= 2 {
-                        let old_part = parts[0].trim_start_matches('-');
-                        let new_part = parts[1].trim_start_matches('+');
-
-                        let (old_start, old_count) =
-                            if let Some((start, count)) = old_part.split_once(',') {
-                                (start.parse().unwrap_or(1), count.parse().unwrap_or(0))
-                            } else {
-                                (old_part.parse().unwrap_or(1), 1)
-                            };
-
-                        let (new_start, new_count) =
-                            if let Some((start, count)) = new_part.split_once(',') {
-                                (start.parse().unwrap_or(1), count.parse().unwrap_or(0))
-                            } else {
-                                (new_part.parse().unwrap_or(1), 1)
-                            };
-
-                        old_line_no = old_start;
-                        new_line_no = new_start;
-
-                        current_hunk = Some(DiffHunk {
-                            old_start,
-                            old_lines: old_count,
-                            new_start,
-                            new_lines: new_count,
-                            lines: Vec::new(),
-                        });
-                    }
-                }
-            } else if let Some(stripped) = line.strip_prefix('+') {
-                if !line.starts_with("+++") {
-                    // Addition
-                    if let Some(ref mut hunk) = current_hunk {
-                        let content = stripped.to_string();
-                        hunk.lines.push(LineChange {
-                            change_type: LineChangeType::Addition,
-                            content,
-                            old_line_no: None,
-                            new_line_no: Some(new_line_no),
-                        });
-                        new_line_no += 1;
-                    }
-                }
-            } else if let Some(stripped) = line.strip_prefix('-') {
-                if !line.starts_with("---") {
-                    // Deletion
-                    if let Some(ref mut hunk) = current_hunk {
-                        let content = stripped.to_string();
-                        hunk.lines.push(LineChange {
-                            change_type: LineChangeType::Deletion,
-                            content,
-                            old_line_no: Some(old_line_no),
-                            new_line_no: None,
-                        });
-                        old_line_no += 1;
-                    }
-                }
-            } else if let Some(stripped) = line.strip_prefix(' ') {
-                // Context
-                if let Some(ref mut hunk) = current_hunk {
-                    let content = stripped.to_string();
-                    hunk.lines.push(LineChange {
-                        change_type: LineChangeType::Context,
-                        content,
-                        old_line_no: Some(old_line_no),
-                        new_line_no: Some(new_line_no),
-                    });
-                    old_line_no += 1;
-                    new_line_no += 1;
-                }
-            }
-        }
-
-        // Finish last hunk
-        if let Some(hunk) = current_hunk {
-            hunks.push(hunk);
-        }
-
-        hunks
+        let collector = DiffHunkCollector::new(&input);
+        gix::diff::blob::diff(algo, &input, collector)
     }
 }
 
