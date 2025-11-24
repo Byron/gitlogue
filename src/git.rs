@@ -606,11 +606,16 @@ impl GitRepository {
                 Change::Modification { location, .. } => {
                     location.to_str().unwrap_or("unknown").to_string()
                 }
-                Change::Rewrite { .. } => "".to_string(),
+                Change::Rewrite { location, .. } => {
+                    location.to_str().unwrap_or("unknown").to_string()
+                }
             };
 
             let status = FileStatus::from_change(&change);
-            let old_path = None; // gix doesn't track renames the same way
+            
+            // Note: gix's basic tree diff doesn't detect renames like git2 did.
+            // Renames appear as separate Deletion + Addition changes.
+            let old_path = None;
 
             // Get old and new content for blob diff
             let (old_id, new_id, is_binary) = match &change {
@@ -631,7 +636,15 @@ impl GitRepository {
                     let new_binary = Self::is_blob_binary(repo, new_oid);
                     (Some(old_oid), Some(new_oid), old_binary || new_binary)
                 }
-                Change::Rewrite { .. } => (None, None, false),
+                Change::Rewrite {
+                    source_id, id, ..
+                } => {
+                    let old_oid: ObjectId = source_id.to_owned().into();
+                    let new_oid: ObjectId = id.to_owned().into();
+                    let old_binary = Self::is_blob_binary(repo, old_oid);
+                    let new_binary = Self::is_blob_binary(repo, new_oid);
+                    (Some(old_oid), Some(new_oid), old_binary || new_binary)
+                }
             };
 
             let old_content = old_id.and_then(|id| Self::get_blob_content(repo, id).ok().flatten());
