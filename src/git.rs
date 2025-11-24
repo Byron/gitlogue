@@ -136,8 +136,11 @@ pub enum FileStatus {
     Added,
     Deleted,
     Modified,
+    #[allow(dead_code)]
     Renamed,
+    #[allow(dead_code)]
     Copied,
+    #[allow(dead_code)]
     Unmodified,
 }
 
@@ -275,11 +278,7 @@ impl GitRepository {
         let mut cache = self.commit_cache.borrow_mut();
         if cache.is_none() {
             let head = self.repo.head_id()?;
-            let commits = self
-                .repo
-                .rev_walk([head])
-                .all()?
-                .filter_map(Result::ok);
+            let commits = self.repo.rev_walk([head]).all()?.filter_map(Result::ok);
 
             let mut candidates = Vec::new();
             for info in commits {
@@ -483,21 +482,13 @@ impl GitRepository {
         let start = if parts[0].is_empty() {
             None
         } else {
-            Some(
-                self.repo
-                    .rev_parse_single(parts[0])?
-                    .object()?
-                    .id,
-            )
+            Some(self.repo.rev_parse_single(parts[0])?.object()?.id)
         };
 
         let end: ObjectId = if parts[1].is_empty() {
             self.repo.head_id()?.into()
         } else {
-            self.repo
-                .rev_parse_single(parts[1])?
-                .object()?
-                .id
+            self.repo.rev_parse_single(parts[1])?.object()?.id
         };
 
         // Build list of commits to exclude if start is specified
@@ -531,11 +522,7 @@ impl GitRepository {
         let mut cache = self.commit_cache.borrow_mut();
         if cache.is_none() {
             let head = self.repo.head_id()?;
-            let commits = self
-                .repo
-                .rev_walk([head])
-                .all()?
-                .filter_map(Result::ok);
+            let commits = self.repo.rev_walk([head]).all()?.filter_map(Result::ok);
 
             let mut candidates = Vec::new();
             for info in commits {
@@ -562,12 +549,8 @@ impl GitRepository {
         let hash = commit.id.to_string();
         let commit_obj = commit.decode()?;
         let author_sig = commit_obj.author();
-        let author_name = author_sig
-            .name
-            .to_str()
-            .unwrap_or("Unknown")
-            .to_string();
-        
+        let author_name = author_sig.name.to_str().unwrap_or("Unknown").to_string();
+
         // Parse the time string (format: "seconds timezone") - we only need the seconds
         let time_str = author_sig.time;
         let timestamp = time_str
@@ -576,12 +559,7 @@ impl GitRepository {
             .and_then(|s| s.parse::<i64>().ok())
             .unwrap_or(0);
         let date = DateTime::from_timestamp(timestamp, 0).unwrap_or_else(Utc::now);
-        let message = commit_obj
-            .message
-            .to_str()
-            .unwrap_or("")
-            .trim()
-            .to_string();
+        let message = commit_obj.message.to_str().unwrap_or("").trim().to_string();
 
         let changes = Self::extract_changes(repo, commit)?;
 
@@ -619,9 +597,15 @@ impl GitRepository {
 
         tree_diff.for_each_to_obtain_tree(&commit_tree, |change| {
             let path = match &change {
-                Change::Addition { location, .. } => location.to_str().unwrap_or("unknown").to_string(),
-                Change::Deletion { location, .. } => location.to_str().unwrap_or("unknown").to_string(),
-                Change::Modification { location, .. } => location.to_str().unwrap_or("unknown").to_string(),
+                Change::Addition { location, .. } => {
+                    location.to_str().unwrap_or("unknown").to_string()
+                }
+                Change::Deletion { location, .. } => {
+                    location.to_str().unwrap_or("unknown").to_string()
+                }
+                Change::Modification { location, .. } => {
+                    location.to_str().unwrap_or("unknown").to_string()
+                }
                 Change::Rewrite { .. } => "".to_string(),
             };
 
@@ -638,7 +622,9 @@ impl GitRepository {
                     let oid: ObjectId = id.to_owned().into();
                     (Some(oid), None, Self::is_blob_binary(repo, oid))
                 }
-                Change::Modification { previous_id, id, .. } => {
+                Change::Modification {
+                    previous_id, id, ..
+                } => {
                     let old_oid: ObjectId = previous_id.to_owned().into();
                     let new_oid: ObjectId = id.to_owned().into();
                     let old_binary = Self::is_blob_binary(repo, old_oid);
@@ -648,11 +634,9 @@ impl GitRepository {
                 Change::Rewrite { .. } => (None, None, false),
             };
 
-            let old_content = old_id
-                .and_then(|id| Self::get_blob_content(repo, id).ok().flatten());
+            let old_content = old_id.and_then(|id| Self::get_blob_content(repo, id).ok().flatten());
 
-            let new_content = new_id
-                .and_then(|id| Self::get_blob_content(repo, id).ok().flatten());
+            let new_content = new_id.and_then(|id| Self::get_blob_content(repo, id).ok().flatten());
 
             // Generate diff hunks using imara-diff
             let (hunks, diff_text) = if !is_binary && old_id.is_some() && new_id.is_some() {
@@ -754,23 +738,27 @@ impl GitRepository {
                 }
 
                 // Parse hunk header: @@ -old_start,old_lines +new_start,new_lines @@
-                if let Some(header_content) = line.strip_prefix("@@").and_then(|s| s.strip_suffix("@@")) {
-                    let parts: Vec<&str> = header_content.trim().split_whitespace().collect();
+                if let Some(header_content) =
+                    line.strip_prefix("@@").and_then(|s| s.strip_suffix("@@"))
+                {
+                    let parts: Vec<&str> = header_content.split_whitespace().collect();
                     if parts.len() >= 2 {
                         let old_part = parts[0].trim_start_matches('-');
                         let new_part = parts[1].trim_start_matches('+');
 
-                        let (old_start, old_count) = if let Some((start, count)) = old_part.split_once(',') {
-                            (start.parse().unwrap_or(1), count.parse().unwrap_or(0))
-                        } else {
-                            (old_part.parse().unwrap_or(1), 1)
-                        };
+                        let (old_start, old_count) =
+                            if let Some((start, count)) = old_part.split_once(',') {
+                                (start.parse().unwrap_or(1), count.parse().unwrap_or(0))
+                            } else {
+                                (old_part.parse().unwrap_or(1), 1)
+                            };
 
-                        let (new_start, new_count) = if let Some((start, count)) = new_part.split_once(',') {
-                            (start.parse().unwrap_or(1), count.parse().unwrap_or(0))
-                        } else {
-                            (new_part.parse().unwrap_or(1), 1)
-                        };
+                        let (new_start, new_count) =
+                            if let Some((start, count)) = new_part.split_once(',') {
+                                (start.parse().unwrap_or(1), count.parse().unwrap_or(0))
+                            } else {
+                                (new_part.parse().unwrap_or(1), 1)
+                            };
 
                         old_line_no = old_start;
                         new_line_no = new_start;
@@ -784,34 +772,38 @@ impl GitRepository {
                         });
                     }
                 }
-            } else if line.starts_with('+') && !line.starts_with("+++") {
-                // Addition
-                if let Some(ref mut hunk) = current_hunk {
-                    let content = line[1..].to_string();
-                    hunk.lines.push(LineChange {
-                        change_type: LineChangeType::Addition,
-                        content,
-                        old_line_no: None,
-                        new_line_no: Some(new_line_no),
-                    });
-                    new_line_no += 1;
+            } else if let Some(stripped) = line.strip_prefix('+') {
+                if !line.starts_with("+++") {
+                    // Addition
+                    if let Some(ref mut hunk) = current_hunk {
+                        let content = stripped.to_string();
+                        hunk.lines.push(LineChange {
+                            change_type: LineChangeType::Addition,
+                            content,
+                            old_line_no: None,
+                            new_line_no: Some(new_line_no),
+                        });
+                        new_line_no += 1;
+                    }
                 }
-            } else if line.starts_with('-') && !line.starts_with("---") {
-                // Deletion
-                if let Some(ref mut hunk) = current_hunk {
-                    let content = line[1..].to_string();
-                    hunk.lines.push(LineChange {
-                        change_type: LineChangeType::Deletion,
-                        content,
-                        old_line_no: Some(old_line_no),
-                        new_line_no: None,
-                    });
-                    old_line_no += 1;
+            } else if let Some(stripped) = line.strip_prefix('-') {
+                if !line.starts_with("---") {
+                    // Deletion
+                    if let Some(ref mut hunk) = current_hunk {
+                        let content = stripped.to_string();
+                        hunk.lines.push(LineChange {
+                            change_type: LineChangeType::Deletion,
+                            content,
+                            old_line_no: Some(old_line_no),
+                            new_line_no: None,
+                        });
+                        old_line_no += 1;
+                    }
                 }
-            } else if line.starts_with(' ') {
+            } else if let Some(stripped) = line.strip_prefix(' ') {
                 // Context
                 if let Some(ref mut hunk) = current_hunk {
-                    let content = line[1..].to_string();
+                    let content = stripped.to_string();
                     hunk.lines.push(LineChange {
                         change_type: LineChangeType::Context,
                         content,
