@@ -607,12 +607,12 @@ impl GitRepository {
         let hash = commit.id.to_string();
         let commit_obj = commit.decode()?;
         let author_sig = commit_obj.author();
-        let author_name = author_sig.name.to_str().unwrap_or("Unknown").to_string();
+        let author_name = author_sig.name.to_str_lossy().into_owned();
 
         // Parse the time string (format: "seconds timezone") - we only need the seconds
         let timestamp = author_sig.time()?.seconds;
         let date = DateTime::from_timestamp(timestamp, 0).unwrap_or_else(Utc::now);
-        let message = commit_obj.message.to_str().unwrap_or("").trim().to_string();
+        let message = commit_obj.message.to_str_lossy().into_owned();
 
         let changes = Self::extract_changes(repo, commit)?;
 
@@ -644,7 +644,7 @@ impl GitRepository {
                 if change.entry_mode().is_tree() {
                     return anyhow::Ok(gix::object::tree::diff::Action::Continue);
                 }
-                let path = change.location().to_str().unwrap_or("unknown");
+                let path = change.location().to_str_lossy().into_owned();
                 let status = FileStatus::from_change(&change);
 
                 let old_path = if let Change::Rewrite {
@@ -693,7 +693,7 @@ impl GitRepository {
                 let total_changed_lines: usize = hunks.iter().flat_map(|hunk| &hunk.lines).count();
 
                 // Determine exclusion reason
-                let (is_excluded, exclusion_reason) = if should_exclude_file(path) {
+                let (is_excluded, exclusion_reason) = if should_exclude_file(&path) {
                     (true, Some("lock/generated file".to_string()))
                 } else if total_changed_lines > MAX_CHANGE_LINES {
                     (
@@ -705,9 +705,8 @@ impl GitRepository {
                 };
 
                 changes.push(FileChange {
-                    path: path.to_owned(),
-                    old_path: old_path
-                        .map(|path| path.to_str().ok().unwrap_or("unknown").to_owned()),
+                    path,
+                    old_path: old_path.map(|path| path.to_str_lossy().into_owned()),
                     status,
                     is_binary,
                     is_excluded,
